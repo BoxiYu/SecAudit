@@ -21,10 +21,12 @@ const MAX_FILE_SIZE = 50_000; // 50KB per file for LLM analysis
 export class LLMScanner {
   private provider: string;
   private model: string;
+  private apiKey?: string;
 
-  constructor(provider: string = 'openai', model: string = 'gpt-4o-mini') {
+  constructor(provider: string = 'openai', model: string = 'gpt-4o-mini', apiKey?: string) {
     this.provider = provider;
     this.model = model;
+    this.apiKey = apiKey;
   }
 
   async scan(targetPath: string): Promise<{ findings: Finding[]; filesScanned: number }> {
@@ -66,7 +68,7 @@ export class LLMScanner {
       if (lines.length < 5) continue;
 
       const relPath = relative(targetPath, fullPath);
-      const fileFindings = await analyzeCode(this.provider, this.model, content, relPath);
+      const fileFindings = await analyzeCode(this.provider, this.model, content, relPath, this.apiKey);
 
       // Validate line numbers and enrich with snippets
       for (const finding of fileFindings) {

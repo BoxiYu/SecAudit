@@ -1,4 +1,4 @@
-import { getModel, completeSimple, type Context, type KnownProvider } from '@mariozechner/pi-ai';
+import { getModel, completeSimple, type Context, type KnownProvider, type Model, type Api } from '@mariozechner/pi-ai';
 import { Finding, Severity } from '../types.js';
 
 const SYSTEM_PROMPT = `You are a security auditor. Analyze the provided code for security vulnerabilities.
@@ -29,9 +29,16 @@ function addLineNumbers(code: string): string {
   return code.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
 }
 
-export function createModel(provider: string, model: string) {
+export function createModel(provider: string, model: string, apiKey?: string): Model<Api> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (getModel as any)(provider, model);
+  const m = (getModel as any)(provider, model) as Model<Api>;
+
+  // For OAuth providers, inject the token as Authorization header
+  if (apiKey && (provider === 'openai-codex' || provider === 'chatgpt')) {
+    m.headers = { ...m.headers, Authorization: `Bearer ${apiKey}` };
+  }
+
+  return m;
 }
 
 export async function analyzeCode(
@@ -39,8 +46,9 @@ export async function analyzeCode(
   model: string,
   code: string,
   filename: string,
+  apiKey?: string,
 ): Promise<Finding[]> {
-  const m = createModel(provider, model);
+  const m = createModel(provider, model, apiKey);
 
   const context: Context = {
     systemPrompt: SYSTEM_PROMPT,
@@ -54,7 +62,7 @@ export async function analyzeCode(
   };
 
   try {
-    const result = await completeSimple(m, context);
+    const result = await completeSimple(m, context, apiKey ? { apiKey } as any : undefined);
     // completeSimple returns AssistantMessage with content array
     const textParts = result.content.filter((c): c is { type: 'text'; text: string } => 'type' in c && (c as any).type === 'text');
     const text = textParts.map((p) => p.text).join('');

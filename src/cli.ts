@@ -48,18 +48,23 @@ program
 
     // LLM scan
     if (options.llm !== false) {
-      // For OAuth providers, set API key from stored credentials
+      // For OAuth providers, set API key and fix model
       if (options.provider === 'openai-codex' || options.provider === 'chatgpt') {
         const key = await getApiKey(options.provider);
         if (key) {
           process.env.OPENAI_API_KEY = key;
         }
+        // Default model for codex provider
+        if (options.model === 'gpt-4o-mini') {
+          options.model = 'gpt-5.1-codex-mini';
+        }
       }
 
-      if (!checkAuth(options.provider)) {
+      const resolvedKey = await getApiKey(options.provider);
+      if (!checkAuth(options.provider) && !resolvedKey) {
         console.error(`\n⚠️  No API key found for ${options.provider}. Run: secaudit login\n`);
       } else {
-        const llmScanner = new LLMScanner(options.provider, options.model);
+        const llmScanner = new LLMScanner(options.provider, options.model, resolvedKey ?? undefined);
         const result = await llmScanner.scan(absPath);
         allFindings.push(...result.findings);
         filesScanned = Math.max(filesScanned, result.filesScanned);

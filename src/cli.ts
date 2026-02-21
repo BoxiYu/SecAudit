@@ -233,6 +233,44 @@ program
   });
 
 program
+  .command('deps')
+  .description('Scan dependencies for known vulnerabilities (SCA via OSV)')
+  .argument('[path]', 'Path to scan', '.')
+  .option('-f, --format <format>', 'Output format (terminal, json, sarif)', 'terminal')
+  .option('-s, --severity <severity>', 'Minimum severity', 'low')
+  .action(async (targetPath: string, options) => {
+    const absPath = resolve(targetPath);
+    const { SCAScanner } = await import('./scanner/sca.js');
+    const scanner = new SCAScanner();
+
+    console.log('\n🔎 Scanning dependencies for known vulnerabilities...\n');
+    const result = await scanner.scan(absPath);
+
+    const minOrder = SEVERITY_ORDER[options.severity as Severity] ?? SEVERITY_ORDER[Severity.Low];
+    const filtered = result.findings.filter((f) => SEVERITY_ORDER[f.severity] <= minOrder);
+
+    const scanResult: ScanResult = {
+      findings: filtered,
+      filesScanned: 0,
+      duration: 0,
+      staticFindings: 0,
+      llmFindings: 0,
+      scaFindings: filtered.length,
+      depsScanned: result.depsScanned,
+    };
+
+    switch (options.format) {
+      case 'json': reportJSON(scanResult); break;
+      case 'sarif': reportSARIF(scanResult); break;
+      default: reportTerminal(scanResult); break;
+    }
+
+    if (filtered.some((f) => f.severity === Severity.Critical || f.severity === Severity.High)) {
+      process.exit(1);
+    }
+  });
+
+program
   .command('rules')
   .description('List all available rules')
   .option('-c, --category <cat>', 'Filter by category')

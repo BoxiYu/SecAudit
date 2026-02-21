@@ -23,11 +23,13 @@ export class LLMScanner {
   private model: string;
   private apiKey?: string;
   private fileFilter?: Set<string>;
+  private concurrency: number;
 
-  constructor(provider: string = 'openai', model: string = 'gpt-4o-mini', apiKey?: string) {
+  constructor(provider: string = 'openai', model: string = 'gpt-4o-mini', apiKey?: string, concurrency: number = 5) {
     this.provider = provider;
     this.model = model;
     this.apiKey = apiKey;
+    this.concurrency = concurrency;
   }
 
   setFileFilter(files: string[]): void {
@@ -53,9 +55,8 @@ export class LLMScanner {
       return true;
     });
 
-    const findings: Finding[] = [];
-    let scanned = 0;
-
+    // Pre-read and filter files
+    const fileInfos: Array<{ file: string; content: string; lines: string[] }> = [];
     for (const file of filtered) {
       const fullPath = `${targetPath}/${file}`;
       let content: string;
@@ -64,34 +65,38 @@ export class LLMScanner {
       } catch {
         continue;
       }
-
-      // Skip files that are too large
-      if (content.length > MAX_FILE_SIZE) {
-        continue;
-      }
-
-      // Skip files that are mostly auto-generated or have few lines
+      if (content.length > MAX_FILE_SIZE) continue;
       const lines = content.split('\n');
       if (lines.length < 5) continue;
+      fileInfos.push({ file, content, lines });
+    }
 
-      const relPath = relative(targetPath, fullPath);
-      const fileFindings = await analyzeCode(this.provider, this.model, content, relPath, this.apiKey);
+    const findings: Finding[] = [];
 
-      // Validate line numbers and enrich with snippets
+    // Process files with concurrency limit
+    const analyzeFile = async (info: typeof fileInfos[0]): Promise<Finding[]> => {
+      const relPath = relative(targetPath, `${targetPath}/${info.file}`);
+      const fileFindings = await analyzeCode(this.provider, this.model, info.content, relPath, this.apiKey);
       for (const finding of fileFindings) {
-        if (finding.line > 0 && finding.line <= lines.length) {
-          finding.snippet = lines[finding.line - 1].trim().substring(0, 200);
+        if (finding.line > 0 && finding.line <= info.lines.length) {
+          finding.snippet = info.lines[finding.line - 1].trim().substring(0, 200);
         } else {
-          // Line out of range — try to find by snippet match
           finding.line = 1;
           finding.snippet = '';
         }
       }
+      return fileFindings;
+    };
 
-      findings.push(...fileFindings);
-      scanned++;
+    // Run with concurrency pool
+    for (let i = 0; i < fileInfos.length; i += this.concurrency) {
+      const batch = fileInfos.slice(i, i + this.concurrency);
+      const results = await Promise.all(batch.map(analyzeFile));
+      for (const result of results) {
+        findings.push(...result);
+      }
     }
 
-    return { findings, filesScanned: scanned };
+    return { findings, filesScanned: fileInfos.length };
   }
 }

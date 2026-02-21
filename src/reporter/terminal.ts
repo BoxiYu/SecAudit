@@ -75,7 +75,7 @@ export function reportTerminal(result: ScanResult): void {
 }
 
 function printSummary(result: ScanResult): void {
-  const { findings, filesScanned, duration, staticFindings, llmFindings } = result;
+  const { findings, filesScanned, duration, staticFindings, llmFindings, scaFindings, depsScanned } = result;
 
   const counts: Record<Severity, number> = {
     [Severity.Critical]: 0,
@@ -105,6 +105,7 @@ function printSummary(result: ScanResult): void {
 
   if (staticFindings > 0) console.log(`    Static rules:   ${staticFindings}`);
   if (llmFindings > 0) console.log(`    LLM analysis:   ${llmFindings}`);
+  if (scaFindings != null) console.log(`    Dep vulns:      ${scaFindings} (${depsScanned ?? 0} packages checked)`);
 
   console.log(`    Duration:       ${(duration / 1000).toFixed(1)}s`);
 

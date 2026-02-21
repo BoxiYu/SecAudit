@@ -7,4 +7,5 @@ export { reportJSON } from './reporter/json.js';
 export { reportSARIF } from './reporter/sarif.js';
 export { login, checkAuth, getApiKey } from './auth/oauth.js';
 export { loadConfig, loadBaseline, isInBaseline } from './config.js';
+export { SCAScanner } from './scanner/sca.js';
 export type { Finding, ScanResult, ScanOptions, Rule, Severity, FixSuggestion } from './types.js';

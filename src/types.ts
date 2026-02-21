@@ -39,6 +39,8 @@ export interface ScanResult {
   duration: number;
   staticFindings: number;
   llmFindings: number;
+  scaFindings?: number;
+  depsScanned?: number;
 }
 
 export interface Rule {

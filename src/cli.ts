@@ -48,7 +48,7 @@ program
 
     // Merge config with CLI options (CLI takes precedence)
     const provider = options.provider ?? config.provider ?? 'openai-codex';
-    const model = options.model ?? config.model ?? 'gpt-5.1-codex-mini';
+    const model = options.model ?? config.model ?? 'gpt-5.3-codex';
     const format = options.format ?? config.format ?? 'terminal';
     const severity = options.severity ?? config.severity ?? 'low';
 
@@ -101,7 +101,7 @@ program
           console.error(`\n⚠️  No API key found for ${provider}. Run: secaudit login\n`);
         }
       } else {
-        const actualModel = (provider === 'openai-codex' && model === 'gpt-4o-mini') ? 'gpt-5.1-codex-mini' : model;
+        const actualModel = model;
         const llmScanner = new LLMScanner(provider, actualModel, resolvedKey ?? undefined);
         if (diffFiles) llmScanner.setFileFilter(diffFiles);
         const result = await llmScanner.scan(absPath);
@@ -115,7 +115,7 @@ program
     if (options.gitHistory) {
       const { GitHistoryScanner } = await import('./scanner/git-history.js');
       const resolvedKey2 = await getApiKey(provider);
-      const actualModel2 = (provider === 'openai-codex' && model === 'gpt-4o-mini') ? 'gpt-5.1-codex-mini' : model;
+      const actualModel2 = model;
       const gitScanner = new GitHistoryScanner(provider, actualModel2, resolvedKey2 ?? undefined);
       if (!options.quiet) console.log('\n🔍 Analyzing git history for incomplete security fixes...');
       const gitResult = await gitScanner.scan(absPath);
@@ -127,7 +127,7 @@ program
     if (options.deep) {
       const { DeepLLMScanner } = await import('./scanner/deep-llm.js');
       const resolvedKey3 = await getApiKey(provider);
-      const actualModel3 = (provider === 'openai-codex' && model === 'gpt-4o-mini') ? 'gpt-5.1-codex-mini' : model;
+      const actualModel3 = model;
       const deepScanner = new DeepLLMScanner(provider, actualModel3, resolvedKey3 ?? undefined);
       if (!options.quiet) console.log('\n🧠 Deep cross-file analysis...');
       const deepResult = await deepScanner.scan(absPath);

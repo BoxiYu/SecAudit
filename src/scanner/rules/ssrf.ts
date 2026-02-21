@@ -1,0 +1,52 @@
+import { Rule, Severity } from '../../types.js';
+
+export const ssrfRules: Rule[] = [
+  {
+    id: 'SSRF_FETCH_USER_INPUT',
+    category: 'SSRF',
+    severity: Severity.High,
+    message: 'fetch/request with user-controlled URL — validate against allowlist',
+    pattern: /(?:fetch|axios|request|got|urllib|http\.get|https\.get)\s*\(\s*(?:req\.|params\.|query\.|body\.|input|user|url|data)/i,
+    cwe: 'CWE-918',
+    owasp: 'A10:2021',
+    fix: { description: 'Validate URLs against an allowlist of domains. Block internal IPs (127.0.0.1, 10.x, 172.16-31.x, 192.168.x).' },
+  },
+  {
+    id: 'SSRF_REDIRECT_FOLLOW',
+    category: 'SSRF',
+    severity: Severity.Medium,
+    message: 'HTTP client follows redirects — may be exploited for SSRF',
+    pattern: /(?:followRedirect|maxRedirects|follow)\s*[:=]\s*(?:true|\d+)/i,
+    cwe: 'CWE-918',
+    owasp: 'A10:2021',
+  },
+  {
+    id: 'SSRF_DNS_REBIND',
+    category: 'SSRF',
+    severity: Severity.Medium,
+    message: 'URL resolution without IP validation — vulnerable to DNS rebinding',
+    pattern: /(?:dns\.resolve|dns\.lookup)\s*\([^)]*(?:req\.|params\.|body\.)/i,
+    cwe: 'CWE-918',
+    owasp: 'A10:2021',
+  },
+  {
+    id: 'SSRF_URLOPEN',
+    category: 'SSRF',
+    severity: Severity.High,
+    message: 'urllib/urlopen with variable URL — potential SSRF',
+    pattern: /(?:urlopen|urllib\.request\.urlopen|urllib2\.urlopen|requests\.get)\s*\(\s*(?!["'])[a-zA-Z]/i,
+    fileExtensions: ['.py'],
+    cwe: 'CWE-918',
+    owasp: 'A10:2021',
+  },
+  {
+    id: 'SSRF_JAVA_URL',
+    category: 'SSRF',
+    severity: Severity.High,
+    message: 'Java URL connection with variable — potential SSRF',
+    pattern: /new\s+URL\s*\(\s*(?!["'])[a-zA-Z].*\)\.open(?:Connection|Stream)/i,
+    fileExtensions: ['.java'],
+    cwe: 'CWE-918',
+    owasp: 'A10:2021',
+  },
+];

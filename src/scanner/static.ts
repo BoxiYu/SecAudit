@@ -5,6 +5,9 @@ import ignore from 'ignore';
 import { Finding, Rule } from '../types.js';
 import { allRules } from './rules/index.js';
 
+const SUPPRESS_REGEX = /(?:\/\/|#|\/\*)\s*secaudit-disable(?:-next)?-line\s+([\w,\s]+)/i;
+const SUPPRESS_FILE_REGEX = /(?:\/\/|#|\/\*)\s*secaudit-disable-file\b/i;
+
 const DEFAULT_IGNORE = [
   'node_modules/**',
   'dist/**',
@@ -71,17 +74,27 @@ export class StaticScanner {
       const ext = extname(file).toLowerCase();
       const lines = content.split('\n');
 
+      // Check file-level suppression
+      if (lines.some((l) => SUPPRESS_FILE_REGEX.test(l))) continue;
+
       for (let lineNum = 0; lineNum < lines.length; lineNum++) {
         const line = lines[lineNum];
+
+        // Check line-level suppression (current line or previous line)
+        const suppressMatch = SUPPRESS_REGEX.exec(line) ?? (lineNum > 0 ? SUPPRESS_REGEX.exec(lines[lineNum - 1]) : null);
+        const suppressedRules = suppressMatch ? new Set(suppressMatch[1].split(/[,\s]+/).map((s) => s.trim())) : null;
 
         for (const rule of this.rules) {
           if (rule.fileExtensions && !rule.fileExtensions.includes(ext)) {
             continue;
           }
 
+          // Skip if rule is suppressed
+          if (suppressedRules && (suppressedRules.has(rule.id) || suppressedRules.has('all'))) continue;
+
           const match = rule.pattern.exec(line);
           if (match && !rule.negate) {
-            // Skip if line is a comment
+            // Skip if line is a comment (but not a suppression directive we already handled)
             const trimmed = line.trim();
             if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*')) {
               continue;
@@ -96,6 +109,9 @@ export class StaticScanner {
               message: rule.message,
               rule: rule.id,
               snippet: line.trim().substring(0, 200),
+              cwe: rule.cwe,
+              owasp: rule.owasp,
+              fix: rule.fix,
             });
           }
         }

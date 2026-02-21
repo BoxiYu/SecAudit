@@ -51,10 +51,22 @@ export function reportTerminal(result: ScanResult): void {
       const icon = SEVERITY_ICON[f.severity];
       const color = SEVERITY_COLOR[f.severity];
       console.log(`    ${icon}  ${color(f.message)}`);
-      console.log(chalk.gray(`           Line ${f.line} · ${f.category} · ${f.rule}`));
+
+      // Meta line: line, category, rule, CWE, OWASP
+      const meta = [`Line ${f.line}`, f.category, f.rule];
+      if (f.cwe) meta.push(chalk.cyan(f.cwe));
+      if (f.owasp) meta.push(chalk.magenta(f.owasp));
+      console.log(chalk.gray(`           ${meta.join(' · ')}`));
+
       if (f.snippet) {
         console.log(chalk.gray(`           ${f.snippet}`));
       }
+
+      // Fix suggestion
+      if (f.fix) {
+        console.log(chalk.green(`           💡 Fix: ${f.fix.description}`));
+      }
+
       console.log();
     }
   }
@@ -77,6 +89,14 @@ function printSummary(result: ScanResult): void {
     counts[f.severity]++;
   }
 
+  // Collect unique CWEs and OWASP categories
+  const cwes = new Set<string>();
+  const owasps = new Set<string>();
+  for (const f of findings) {
+    if (f.cwe) cwes.add(f.cwe);
+    if (f.owasp) owasps.add(f.owasp);
+  }
+
   console.log(chalk.gray('─'.repeat(60)));
   console.log(chalk.bold('  Summary'));
   console.log();
@@ -87,6 +107,14 @@ function printSummary(result: ScanResult): void {
   if (llmFindings > 0) console.log(`    LLM analysis:   ${llmFindings}`);
 
   console.log(`    Duration:       ${(duration / 1000).toFixed(1)}s`);
+
+  if (cwes.size > 0) {
+    console.log(`    CWE coverage:   ${cwes.size} unique weaknesses`);
+  }
+  if (owasps.size > 0) {
+    console.log(`    OWASP Top 10:   ${[...owasps].sort().join(', ')}`);
+  }
+
   console.log();
 
   if (counts[Severity.Critical] > 0) console.log(chalk.red(`    🔴 Critical: ${counts[Severity.Critical]}`));

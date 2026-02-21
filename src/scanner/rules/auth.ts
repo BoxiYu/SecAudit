@@ -7,6 +7,9 @@ export const authRules: Rule[] = [
     severity: Severity.Critical,
     message: 'Hardcoded password detected',
     pattern: /(?:password|passwd|pwd)\s*[:=]\s*["'][^"']{3,}["']/i,
+    cwe: 'CWE-798',
+    owasp: 'A07:2021',
+    fix: { description: 'Use environment variables or a secrets manager for passwords' },
   },
   {
     id: 'AUTH_JWT_NONE',
@@ -14,6 +17,8 @@ export const authRules: Rule[] = [
     severity: Severity.Critical,
     message: 'JWT with "none" algorithm — tokens can be forged',
     pattern: /algorithm[s"':\s]*["']none["']/i,
+    cwe: 'CWE-347',
+    owasp: 'A02:2021',
   },
   {
     id: 'AUTH_JWT_WEAK_SECRET',
@@ -21,6 +26,9 @@ export const authRules: Rule[] = [
     severity: Severity.High,
     message: 'JWT signed with a short/weak secret',
     pattern: /(?:jwt|jsonwebtoken)\.sign\s*\([^,]+,\s*["'][^"']{1,15}["']/i,
+    cwe: 'CWE-326',
+    owasp: 'A02:2021',
+    fix: { description: 'Use a key of at least 256 bits (32 chars). Prefer RS256 with key pair.' },
   },
   {
     id: 'AUTH_NO_VERIFY',
@@ -28,6 +36,9 @@ export const authRules: Rule[] = [
     severity: Severity.High,
     message: 'SSL/TLS verification disabled — vulnerable to MITM',
     pattern: /(?:rejectUnauthorized|verify_ssl|VERIFY_SSL|verify_certs)\s*[:=]\s*(?:false|False|0)/i,
+    cwe: 'CWE-295',
+    owasp: 'A07:2021',
+    fix: { description: 'Enable TLS certificate verification in production' },
   },
   {
     id: 'AUTH_CORS_WILDCARD',
@@ -35,6 +46,8 @@ export const authRules: Rule[] = [
     severity: Severity.Medium,
     message: 'CORS allows all origins — restrict to specific domains',
     pattern: /(?:Access-Control-Allow-Origin|cors\s*\()\s*["'*]/i,
+    cwe: 'CWE-942',
+    owasp: 'A05:2021',
   },
   {
     id: 'AUTH_BCRYPT_LOW_ROUNDS',
@@ -42,6 +55,9 @@ export const authRules: Rule[] = [
     severity: Severity.Medium,
     message: 'bcrypt with low salt rounds — use at least 10',
     pattern: /(?:genSalt|bcrypt\.hash)\s*\(\s*(?:[1-9])\s*[),]/,
+    cwe: 'CWE-916',
+    owasp: 'A02:2021',
+    fix: { description: 'Use at least 10-12 salt rounds: bcrypt.genSalt(12)' },
   },
   {
     id: 'AUTH_SESSION_NO_SECURE',
@@ -49,5 +65,16 @@ export const authRules: Rule[] = [
     severity: Severity.Medium,
     message: 'Cookie without secure/httpOnly flag',
     pattern: /(?:secure|httpOnly)\s*:\s*false/i,
+    cwe: 'CWE-614',
+    owasp: 'A05:2021',
+  },
+  {
+    id: 'AUTH_BASIC_AUTH',
+    category: 'Authentication',
+    severity: Severity.Medium,
+    message: 'HTTP Basic Auth detected — credentials sent in cleartext without TLS',
+    pattern: /Authorization.*Basic\s+[A-Za-z0-9+/=]/i,
+    cwe: 'CWE-319',
+    owasp: 'A07:2021',
   },
 ];

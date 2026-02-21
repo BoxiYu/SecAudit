@@ -14,6 +14,11 @@ export const SEVERITY_ORDER: Record<Severity, number> = {
   [Severity.Info]: 4,
 };
 
+export interface FixSuggestion {
+  description: string;
+  replacement?: string;
+}
+
 export interface Finding {
   file: string;
   line: number;
@@ -23,6 +28,9 @@ export interface Finding {
   message: string;
   rule: string;
   snippet: string;
+  cwe?: string;
+  owasp?: string;
+  fix?: FixSuggestion;
 }
 
 export interface ScanResult {
@@ -42,6 +50,9 @@ export interface Rule {
   fileExtensions?: string[];
   /** If true, finding this pattern means it's safe (negates match) */
   negate?: boolean;
+  cwe?: string;
+  owasp?: string;
+  fix?: FixSuggestion;
 }
 
 export interface ScanOptions {

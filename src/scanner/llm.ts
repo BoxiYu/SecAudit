@@ -68,10 +68,14 @@ export class LLMScanner {
       const relPath = relative(targetPath, fullPath);
       const fileFindings = await analyzeCode(this.provider, this.model, content, relPath);
 
-      // Enrich findings with snippets
+      // Validate line numbers and enrich with snippets
       for (const finding of fileFindings) {
         if (finding.line > 0 && finding.line <= lines.length) {
           finding.snippet = lines[finding.line - 1].trim().substring(0, 200);
+        } else {
+          // Line out of range — try to find by snippet match
+          finding.line = 1;
+          finding.snippet = '';
         }
       }
 

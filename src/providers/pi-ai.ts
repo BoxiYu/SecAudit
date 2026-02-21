@@ -25,6 +25,10 @@ Focus on:
 If no vulnerabilities are found, return an empty array: []
 Respond ONLY with the JSON array, no other text.`;
 
+function addLineNumbers(code: string): string {
+  return code.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
+}
+
 export function createModel(provider: string, model: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (getModel as any)(provider, model);
@@ -43,7 +47,7 @@ export async function analyzeCode(
     messages: [
       {
         role: 'user' as const,
-        content: `Analyze this file for security vulnerabilities:\n\nFilename: ${filename}\n\n\`\`\`\n${code}\n\`\`\``,
+        content: `Analyze this file for security vulnerabilities:\n\nFilename: ${filename}\n\n\`\`\`\n${addLineNumbers(code)}\n\`\`\``,
         timestamp: Date.now(),
       },
     ],

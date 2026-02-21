@@ -1,0 +1,94 @@
+name: 'SecAudit Security Review'
+description: 'AI-powered security review for pull requests'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  path:
+    description: 'Path to scan'
+    required: false
+    default: '.'
+  provider:
+    description: 'LLM provider (openai, anthropic, google, etc.)'
+    required: false
+    default: 'openai'
+  model:
+    description: 'LLM model'
+    required: false
+    default: 'gpt-4o-mini'
+  severity:
+    description: 'Minimum severity to report (critical, high, medium, low, info)'
+    required: false
+    default: 'low'
+  static-only:
+    description: 'Skip LLM analysis (static rules only)'
+    required: false
+    default: 'false'
+  github-token:
+    description: 'GitHub token for PR comments'
+    required: false
+    default: ${{ github.token }}
+  api-key:
+    description: 'LLM provider API key'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install secaudit
+      shell: bash
+      run: npm install -g secaudit
+
+    - name: Run security scan
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        GOOGLE_API_KEY: ${{ inputs.api-key }}
+      run: |
+        ARGS="${{ inputs.path }}"
+        ARGS="$ARGS --provider ${{ inputs.provider }}"
+        ARGS="$ARGS --model ${{ inputs.model }}"
+        ARGS="$ARGS --severity ${{ inputs.severity }}"
+        ARGS="$ARGS --format json"
+        if [ "${{ inputs.static-only }}" = "true" ]; then
+          ARGS="$ARGS --no-llm"
+        fi
+        secaudit $ARGS > /tmp/secaudit-results.json 2>&1 || true
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        if [ ! -f /tmp/secaudit-results.json ]; then
+          echo "No results found"
+          exit 0
+        fi
+
+        FINDINGS=$(cat /tmp/secaudit-results.json | python3 -c "
+        import json, sys
+        data = json.load(sys.stdin)
+        findings = data.get('findings', [])
+        if not findings:
+            print('✅ **SecAudit:** No security issues found!')
+            sys.exit(0)
+        
+        icons = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🔵', 'info': '⚪'}
+        print('## 🛡️ SecAudit Security Review\n')
+        print(f'Found **{len(findings)}** issue(s)\n')
+        print('| Severity | File | Line | Issue |')
+        print('|----------|------|------|-------|')
+        for f in findings:
+            icon = icons.get(f['severity'], '⚪')
+            print(f'| {icon} {f[\"severity\"]} | \`{f[\"file\"]}\` | {f[\"line\"]} | {f[\"message\"]} |')
+        ")
+
+        gh pr comment ${{ github.event.pull_request.number }} --body "$FINDINGS"

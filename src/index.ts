@@ -5,5 +5,5 @@ export { analyzeCode, createModel } from './providers/pi-ai.js';
 export { reportTerminal } from './reporter/terminal.js';
 export { reportJSON } from './reporter/json.js';
 export { reportSARIF } from './reporter/sarif.js';
-export { login, checkAuth } from './auth/oauth.js';
+export { login, checkAuth, getApiKey } from './auth/oauth.js';
 export type { Finding, ScanResult, ScanOptions, Rule, Severity } from './types.js';

@@ -7,7 +7,7 @@ import { LLMScanner } from './scanner/llm.js';
 import { reportTerminal } from './reporter/terminal.js';
 import { reportJSON } from './reporter/json.js';
 import { reportSARIF } from './reporter/sarif.js';
-import { login, checkAuth } from './auth/oauth.js';
+import { login, checkAuth, getApiKey } from './auth/oauth.js';
 import { Severity, SEVERITY_ORDER } from './types.js';
 import type { Finding, ScanResult } from './types.js';
 
@@ -48,8 +48,16 @@ program
 
     // LLM scan
     if (options.llm !== false) {
+      // For OAuth providers, set API key from stored credentials
+      if (options.provider === 'openai-codex' || options.provider === 'chatgpt') {
+        const key = await getApiKey(options.provider);
+        if (key) {
+          process.env.OPENAI_API_KEY = key;
+        }
+      }
+
       if (!checkAuth(options.provider)) {
-        console.error(`\n⚠️  No API key found for ${options.provider}. Run: secaudit login --provider ${options.provider}\n`);
+        console.error(`\n⚠️  No API key found for ${options.provider}. Run: secaudit login\n`);
       } else {
         const llmScanner = new LLMScanner(options.provider, options.model);
         const result = await llmScanner.scan(absPath);

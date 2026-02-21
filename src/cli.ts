@@ -110,7 +110,7 @@ program
 program
   .command('login')
   .description('Authenticate with an LLM provider')
-  .option('-p, --provider <provider>', 'Provider to authenticate with', 'openai')
+  .option('-p, --provider <provider>', 'Provider to authenticate with', 'openai-codex')
   .action(async (options) => {
     await login(options.provider);
   });

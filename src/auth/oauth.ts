@@ -51,10 +51,14 @@ export async function login(provider: string = 'openai-codex'): Promise<void> {
     console.log('\n🔐 Logging in with ChatGPT (OpenAI Codex OAuth)...\n');
 
     const { loginOpenAICodex } = await import('@mariozechner/pi-ai/dist/utils/oauth/openai-codex.js') as any;
+    const { exec: execCmd } = await import('node:child_process');
     const credentials = await loginOpenAICodex({
       onAuth: (info: any) => {
-        console.log('Open this URL in your browser to log in:\n');
+        console.log('Opening browser for login...\n');
         console.log(`  ${info.url}\n`);
+        // Auto-open browser
+        const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        execCmd(`${openCmd} "${info.url}"`);
         if (info.instructions) {
           console.log(info.instructions);
         }

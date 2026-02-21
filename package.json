@@ -1,0 +1,35 @@
+{
+  "name": "secaudit",
+  "version": "1.0.0",
+  "description": "AI-powered security review tool for codebases",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "secaudit": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts"
+  },
+  "keywords": [
+    "security",
+    "audit",
+    "cli",
+    "llm"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@mariozechner/pi-ai": "^0.54.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "glob": "^13.0.6",
+    "ignore": "^7.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "types": "./dist/index.d.ts"
+}

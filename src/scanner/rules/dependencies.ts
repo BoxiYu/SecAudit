@@ -1,0 +1,73 @@
+import { Rule, Severity } from '../../types.js';
+
+export const dependencyRules: Rule[] = [
+  {
+    id: 'DEP_EVAL',
+    category: 'Code Injection',
+    severity: Severity.Critical,
+    message: 'eval() usage — potential code injection vector',
+    pattern: /\beval\s*\(/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx', '.py'],
+  },
+  {
+    id: 'DEP_FUNCTION_CONSTRUCTOR',
+    category: 'Code Injection',
+    severity: Severity.Critical,
+    message: 'Function constructor — equivalent to eval()',
+    pattern: /new\s+Function\s*\(/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx'],
+  },
+  {
+    id: 'DEP_EXEC_UNSANITIZED',
+    category: 'Command Injection',
+    severity: Severity.Critical,
+    message: 'exec/spawn with potential user input — use execFile with args array',
+    pattern: /(?:child_process|exec|execSync|spawn|spawnSync)\s*\(\s*(?:`[^`]*\$\{|[^)]*\+\s*(?:req\.|params\.|query\.|body\.|input|user))/i,
+    fileExtensions: ['.ts', '.js'],
+  },
+  {
+    id: 'DEP_EXEC_SHELL',
+    category: 'Command Injection',
+    severity: Severity.High,
+    message: 'Shell execution detected — ensure input is sanitized',
+    pattern: /(?:exec|execSync|system|popen|subprocess\.call)\s*\(/,
+  },
+  {
+    id: 'DEP_DYNAMIC_REQUIRE',
+    category: 'Code Injection',
+    severity: Severity.High,
+    message: 'Dynamic require/import with variable — potential code injection',
+    pattern: /(?:require|import)\s*\(\s*(?!["'`])[a-zA-Z]/,
+    fileExtensions: ['.ts', '.js'],
+  },
+  {
+    id: 'DEP_DESERIALIZE',
+    category: 'Insecure Deserialization',
+    severity: Severity.High,
+    message: 'Unsafe deserialization — validate and sanitize input',
+    pattern: /(?:pickle\.loads|yaml\.load\s*\([^)]*(?!Loader)|unserialize|Marshal\.load|JSON\.parse\s*\(\s*(?:req\.|params\.|body\.))/i,
+  },
+  {
+    id: 'DEP_PATH_TRAVERSAL',
+    category: 'Path Traversal',
+    severity: Severity.High,
+    message: 'Path constructed from user input — validate and normalize paths',
+    pattern: /(?:readFile|writeFile|createReadStream|open|access)\s*\([^)]*(?:req\.|params\.|query\.|body\.)/i,
+    fileExtensions: ['.ts', '.js'],
+  },
+  {
+    id: 'DEP_INSECURE_RANDOM',
+    category: 'Weak Cryptography',
+    severity: Severity.Medium,
+    message: 'Math.random() for security context — use crypto.randomBytes()',
+    pattern: /Math\.random\s*\(\)/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx'],
+  },
+  {
+    id: 'DEP_HTTP_NO_TLS',
+    category: 'Insecure Transport',
+    severity: Severity.Medium,
+    message: 'HTTP URL in code — use HTTPS instead',
+    pattern: /["']http:\/\/(?!localhost|127\.0\.0\.1|0\.0\.0\.0)/,
+  },
+];

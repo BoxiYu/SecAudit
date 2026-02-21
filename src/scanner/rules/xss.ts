@@ -1,0 +1,60 @@
+import { Rule, Severity } from '../../types.js';
+
+export const xssRules: Rule[] = [
+  {
+    id: 'XSS_INNERHTML',
+    category: 'Cross-Site Scripting',
+    severity: Severity.High,
+    message: 'innerHTML assignment — use textContent or sanitize input',
+    pattern: /\.innerHTML\s*[=+](?!=)/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx', '.vue'],
+  },
+  {
+    id: 'XSS_DOCUMENT_WRITE',
+    category: 'Cross-Site Scripting',
+    severity: Severity.High,
+    message: 'document.write() is an XSS sink — avoid using it',
+    pattern: /document\.write(?:ln)?\s*\(/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx', '.html'],
+  },
+  {
+    id: 'XSS_REACT_DANGEROUS',
+    category: 'Cross-Site Scripting',
+    severity: Severity.High,
+    message: 'dangerouslySetInnerHTML — ensure content is sanitized',
+    pattern: /dangerouslySetInnerHTML/,
+    fileExtensions: ['.tsx', '.jsx', '.js', '.ts'],
+  },
+  {
+    id: 'XSS_VUE_VHTML',
+    category: 'Cross-Site Scripting',
+    severity: Severity.High,
+    message: 'v-html directive — ensure content is sanitized',
+    pattern: /v-html\s*=/,
+    fileExtensions: ['.vue'],
+  },
+  {
+    id: 'XSS_ANGULAR_BYPASS',
+    category: 'Cross-Site Scripting',
+    severity: Severity.Critical,
+    message: 'Angular security bypass — review carefully',
+    pattern: /bypassSecurityTrust(?:Html|Script|Style|Url|ResourceUrl)/,
+    fileExtensions: ['.ts', '.js'],
+  },
+  {
+    id: 'XSS_OUTERHTML',
+    category: 'Cross-Site Scripting',
+    severity: Severity.High,
+    message: 'outerHTML assignment — potential XSS vector',
+    pattern: /\.outerHTML\s*[=+](?!=)/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx'],
+  },
+  {
+    id: 'XSS_INSERT_ADJACENT',
+    category: 'Cross-Site Scripting',
+    severity: Severity.Medium,
+    message: 'insertAdjacentHTML — ensure content is sanitized',
+    pattern: /\.insertAdjacentHTML\s*\(/,
+    fileExtensions: ['.ts', '.js', '.jsx', '.tsx'],
+  },
+];

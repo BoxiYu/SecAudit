@@ -37,9 +37,27 @@ program
     let staticCount = 0;
     let llmCount = 0;
 
+    // Get files to scan (diff mode or full directory)
+    let diffFiles: string[] | undefined;
+    if (options.diff) {
+      const { execFileSync } = await import('node:child_process');
+      try {
+        const diffOutput = execFileSync('git', ['diff', '--name-only', options.diff], { cwd: absPath, encoding: 'utf-8' });
+        diffFiles = diffOutput.trim().split('\n').filter(Boolean);
+        if (diffFiles.length === 0) {
+          console.log('\n✅ No changed files to scan.\n');
+          return;
+        }
+      } catch {
+        console.error(`\n⚠️  Failed to get git diff for "${options.diff}". Make sure you're in a git repo.\n`);
+        return;
+      }
+    }
+
     // Static scan
     if (options.static !== false) {
       const scanner = new StaticScanner();
+      if (diffFiles) scanner.setFileFilter(diffFiles);
       const result = await scanner.scan(absPath);
       allFindings.push(...result.findings);
       filesScanned = Math.max(filesScanned, result.filesScanned);
@@ -65,6 +83,7 @@ program
         console.error(`\n⚠️  No API key found for ${options.provider}. Run: secaudit login\n`);
       } else {
         const llmScanner = new LLMScanner(options.provider, options.model, resolvedKey ?? undefined);
+        if (diffFiles) llmScanner.setFileFilter(diffFiles);
         const result = await llmScanner.scan(absPath);
         allFindings.push(...result.findings);
         filesScanned = Math.max(filesScanned, result.filesScanned);

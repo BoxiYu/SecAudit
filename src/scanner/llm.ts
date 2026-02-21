@@ -22,11 +22,16 @@ export class LLMScanner {
   private provider: string;
   private model: string;
   private apiKey?: string;
+  private fileFilter?: Set<string>;
 
   constructor(provider: string = 'openai', model: string = 'gpt-4o-mini', apiKey?: string) {
     this.provider = provider;
     this.model = model;
     this.apiKey = apiKey;
+  }
+
+  setFileFilter(files: string[]): void {
+    this.fileFilter = new Set(files);
   }
 
   async scan(targetPath: string): Promise<{ findings: Finding[]; filesScanned: number }> {
@@ -43,7 +48,9 @@ export class LLMScanner {
     const filtered = files.filter((f) => {
       const ext = extname(f).toLowerCase();
       if (!CODE_EXTENSIONS.has(ext)) return false;
-      return !ig.ignores(f);
+      if (ig.ignores(f)) return false;
+      if (this.fileFilter && !this.fileFilter.has(f)) return false;
+      return true;
     });
 
     const findings: Finding[] = [];

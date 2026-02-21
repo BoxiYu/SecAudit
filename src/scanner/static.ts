@@ -26,11 +26,16 @@ const BINARY_EXTENSIONS = new Set([
 export class StaticScanner {
   private rules: Rule[];
   private ig: ReturnType<typeof ignore>;
+  private fileFilter?: Set<string>;
 
   constructor(rules?: Rule[]) {
     this.rules = rules ?? allRules;
     this.ig = ignore();
     this.ig.add(DEFAULT_IGNORE);
+  }
+
+  setFileFilter(files: string[]): void {
+    this.fileFilter = new Set(files);
   }
 
   addIgnorePatterns(patterns: string[]): void {
@@ -47,7 +52,9 @@ export class StaticScanner {
 
     const filtered = files.filter((f) => {
       if (BINARY_EXTENSIONS.has(extname(f).toLowerCase())) return false;
-      return !this.ig.ignores(f);
+      if (this.ig.ignores(f)) return false;
+      if (this.fileFilter && !this.fileFilter.has(f)) return false;
+      return true;
     });
 
     const findings: Finding[] = [];

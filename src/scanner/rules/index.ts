@@ -22,6 +22,7 @@ import { rustRules } from './rust-rules.js';
 import { phpRules } from './php-rules.js';
 import { javaRules } from './java-rules.js';
 import { pythonRules } from './python-rules.js';
+import { cRules } from './c-rules.js';
 
 export const allRules: Rule[] = [
   ...sqlInjectionRules,
@@ -47,6 +48,7 @@ export const allRules: Rule[] = [
   ...phpRules,
   ...javaRules,
   ...pythonRules,
+  ...cRules,
 ];
 
 export {
@@ -54,5 +56,5 @@ export {
   ssrfRules, cryptoRules, injectionRules, prototypePollutionRules,
   redirectRules, xxeRules, csrfRules, infoDisclosureRules, cookieRules,
   fileUploadRules, massAssignmentRules, redosRules, raceConditionRules,
-  goRules, rustRules, phpRules, javaRules, pythonRules,
+  goRules, rustRules, phpRules, javaRules, pythonRules, cRules,
 };

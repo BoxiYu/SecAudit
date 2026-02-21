@@ -34,6 +34,9 @@ program
   .option('--baseline', 'Filter out baseline findings')
   .option('-q, --quiet', 'Quiet mode — only exit code')
   .option('-v, --verbose', 'Show detailed rule information')
+  .option('--deep', 'Deep LLM mode — cross-file analysis')
+  .option('--git-history', 'Analyze git history for incomplete security fixes')
+  .option('--verify', 'Verify C/C++ findings in Docker sandbox (requires Docker)')
   .action(async (targetPath: string, options) => {
     const absPath = resolve(targetPath);
     const config = loadConfig(absPath);
@@ -106,6 +109,30 @@ program
         filesScanned = Math.max(filesScanned, result.filesScanned);
         llmCount = result.findings.length;
       }
+    }
+
+    // Git history analysis
+    if (options.gitHistory) {
+      const { GitHistoryScanner } = await import('./scanner/git-history.js');
+      const resolvedKey2 = await getApiKey(provider);
+      const actualModel2 = (provider === 'openai-codex' && model === 'gpt-4o-mini') ? 'gpt-5.1-codex-mini' : model;
+      const gitScanner = new GitHistoryScanner(provider, actualModel2, resolvedKey2 ?? undefined);
+      if (!options.quiet) console.log('\n🔍 Analyzing git history for incomplete security fixes...');
+      const gitResult = await gitScanner.scan(absPath);
+      allFindings.push(...gitResult.findings);
+      if (!options.quiet) console.log(`   Found ${gitResult.findings.length} issues from ${gitResult.commitsAnalyzed} security commits`);
+    }
+
+    // Deep LLM analysis (cross-file)
+    if (options.deep) {
+      const { DeepLLMScanner } = await import('./scanner/deep-llm.js');
+      const resolvedKey3 = await getApiKey(provider);
+      const actualModel3 = (provider === 'openai-codex' && model === 'gpt-4o-mini') ? 'gpt-5.1-codex-mini' : model;
+      const deepScanner = new DeepLLMScanner(provider, actualModel3, resolvedKey3 ?? undefined);
+      if (!options.quiet) console.log('\n🧠 Deep cross-file analysis...');
+      const deepResult = await deepScanner.scan(absPath);
+      allFindings.push(...deepResult.findings);
+      if (!options.quiet) console.log(`   Found ${deepResult.findings.length} cross-file issues from ${deepResult.modulesScanned} modules`);
     }
 
     // Filter by severity
@@ -268,6 +295,67 @@ program
     if (filtered.some((f) => f.severity === Severity.Critical || f.severity === Severity.High)) {
       process.exit(1);
     }
+  });
+
+program
+  .command('verify')
+  .description('Verify C/C++ findings in Docker sandbox with AddressSanitizer')
+  .argument('[path]', 'Path to scan', '.')
+  .option('-p, --provider <provider>', 'LLM provider for PoC generation', 'openai')
+  .option('-m, --model <model>', 'LLM model', 'gpt-4o-mini')
+  .option('-n, --max <n>', 'Max findings to verify', '10')
+  .action(async (targetPath: string, options) => {
+    const absPath = resolve(targetPath);
+    const { ensureSandboxImage, verifyFinding } = await import('./scanner/sandbox.js');
+    const { readFileSync } = await import('node:fs');
+
+    console.log('\n🐳 Checking Docker sandbox...');
+    if (!ensureSandboxImage()) {
+      console.error('❌ Docker not available. Install Docker or start Colima.');
+      return;
+    }
+    console.log('✅ Sandbox ready\n');
+
+    // First run static scan to find C/C++ issues
+    const scanner = new StaticScanner();
+    const result = await scanner.scan(absPath);
+    const cFindings = result.findings.filter((f) =>
+      f.file.match(/\.[ch](pp)?$/) &&
+      (f.severity === Severity.Critical || f.severity === Severity.High)
+    ).slice(0, parseInt(options.max));
+
+    if (cFindings.length === 0) {
+      console.log('No C/C++ critical/high findings to verify.');
+      return;
+    }
+
+    console.log(`🔬 Verifying ${cFindings.length} findings in Docker sandbox...\n`);
+
+    const apiKey = await getApiKey(options.provider);
+    let verified = 0;
+    let failed = 0;
+
+    for (const finding of cFindings) {
+      const fullPath = `${absPath}/${finding.file}`;
+      let source: string;
+      try { source = readFileSync(fullPath, 'utf-8'); } catch { continue; }
+
+      process.stdout.write(`  ${finding.rule} @ ${finding.file}:${finding.line} ... `);
+      const result = await verifyFinding(finding, source, options.provider, options.model, apiKey ?? undefined);
+
+      if (result.verified) {
+        console.log('✅ VERIFIED');
+        verified++;
+        if (result.asanReport) {
+          console.log(`     ASan: ${result.asanReport.substring(0, 200)}`);
+        }
+      } else {
+        console.log('❌ Not reproduced');
+        failed++;
+      }
+    }
+
+    console.log(`\n📊 Results: ${verified} verified, ${failed} not reproduced out of ${cFindings.length}`);
   });
 
 program

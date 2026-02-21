@@ -8,4 +8,7 @@ export { reportSARIF } from './reporter/sarif.js';
 export { login, checkAuth, getApiKey } from './auth/oauth.js';
 export { loadConfig, loadBaseline, isInBaseline } from './config.js';
 export { SCAScanner } from './scanner/sca.js';
+export { GitHistoryScanner } from './scanner/git-history.js';
+export { DeepLLMScanner } from './scanner/deep-llm.js';
+export { ensureSandboxImage, verifyCVuln, verifyFinding } from './scanner/sandbox.js';
 export type { Finding, ScanResult, ScanOptions, Rule, Severity, FixSuggestion } from './types.js';

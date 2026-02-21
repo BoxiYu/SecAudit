@@ -48,7 +48,7 @@ program
 
     // Merge config with CLI options (CLI takes precedence)
     const provider = options.provider ?? config.provider ?? 'openai-codex';
-    const model = options.model ?? config.model ?? 'gpt-5.3-codex';
+    const model = options.model ?? config.model ?? 'gpt-5.2-codex';
     const format = options.format ?? config.format ?? 'terminal';
     const severity = options.severity ?? config.severity ?? 'low';
 

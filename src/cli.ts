@@ -47,8 +47,8 @@ program
     let llmCount = 0;
 
     // Merge config with CLI options (CLI takes precedence)
-    const provider = options.provider ?? config.provider ?? 'openai';
-    const model = options.model ?? config.model ?? 'gpt-4o-mini';
+    const provider = options.provider ?? config.provider ?? 'openai-codex';
+    const model = options.model ?? config.model ?? 'gpt-5.1-codex-mini';
     const format = options.format ?? config.format ?? 'terminal';
     const severity = options.severity ?? config.severity ?? 'low';
 

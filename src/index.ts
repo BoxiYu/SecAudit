@@ -10,5 +10,7 @@ export { loadConfig, loadBaseline, isInBaseline } from './config.js';
 export { SCAScanner } from './scanner/sca.js';
 export { GitHistoryScanner } from './scanner/git-history.js';
 export { DeepLLMScanner } from './scanner/deep-llm.js';
+export { RLMEngine } from './scanner/rlm-engine.js';
+export type { RLMConfig, RLMResult } from './scanner/rlm-engine.js';
 export { ensureSandboxImage, verifyCVuln, verifyFinding } from './scanner/sandbox.js';
 export type { Finding, ScanResult, ScanOptions, Rule, Severity, FixSuggestion } from './types.js';

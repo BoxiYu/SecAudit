@@ -34,7 +34,9 @@ program
   .option('--baseline', 'Filter out baseline findings')
   .option('-q, --quiet', 'Quiet mode — only exit code')
   .option('-v, --verbose', 'Show detailed rule information')
-  .option('--deep', 'Deep LLM mode — cross-file analysis')
+  .option('--deep', 'Deep LLM mode — recursive cross-file analysis (RLM)')
+  .option('--max-depth <n>', 'RLM recursion depth (default: 2)', '2')
+  .option('--max-iterations <n>', 'Max LLM calls for deep analysis (default: 30)', '30')
   .option('--git-history', 'Analyze git history for incomplete security fixes')
   .option('--verify', 'Verify C/C++ findings in Docker sandbox (requires Docker)')
   .action(async (targetPath: string, options) => {
@@ -123,13 +125,15 @@ program
       if (!options.quiet) console.log(`   Found ${gitResult.findings.length} issues from ${gitResult.commitsAnalyzed} security commits`);
     }
 
-    // Deep LLM analysis (cross-file)
+    // Deep LLM analysis (cross-file, RLM recursive)
     if (options.deep) {
       const { DeepLLMScanner } = await import('./scanner/deep-llm.js');
       const resolvedKey3 = await getApiKey(provider);
-      const actualModel3 = model;
-      const deepScanner = new DeepLLMScanner(provider, actualModel3, resolvedKey3 ?? undefined);
-      if (!options.quiet) console.log('\n🧠 Deep cross-file analysis...');
+      const maxDepth = parseInt(options.maxDepth, 10) || 2;
+      const maxIterations = parseInt(options.maxIterations, 10) || 30;
+      const deepScanner = new DeepLLMScanner(provider, model, resolvedKey3 ?? undefined, 3, maxDepth, maxIterations);
+      if (!options.quiet) console.log('\n🧠 Deep RLM analysis (recursive cross-file)...');
+      deepScanner.setQuiet(!!options.quiet);
       const deepResult = await deepScanner.scan(absPath);
       allFindings.push(...deepResult.findings);
       if (!options.quiet) console.log(`   Found ${deepResult.findings.length} cross-file issues from ${deepResult.modulesScanned} modules`);

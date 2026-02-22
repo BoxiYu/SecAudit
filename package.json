@@ -1,6 +1,6 @@
 {
   "name": "secaudit",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "AI-powered security review tool for codebases",
   "type": "module",
   "main": "dist/index.js",

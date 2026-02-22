@@ -116,7 +116,7 @@ export class GitHistoryScanner {
   private apiKey?: string;
   private maxCommits: number;
 
-  constructor(provider: string = 'openai', model: string = 'gpt-4o-mini', apiKey?: string, maxCommits: number = 50) {
+  constructor(provider: string = 'openai-codex', model: string = 'gpt-5.3-codex', apiKey?: string, maxCommits: number = 50) {
     this.provider = provider;
     this.model = model;
     this.apiKey = apiKey;

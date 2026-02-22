@@ -25,7 +25,7 @@ export class LLMScanner {
   private fileFilter?: Set<string>;
   private concurrency: number;
 
-  constructor(provider: string = 'openai', model: string = 'gpt-4o-mini', apiKey?: string, concurrency: number = 5) {
+  constructor(provider: string = 'openai', model: string = 'gpt-5.3-codex', apiKey?: string, concurrency: number = 5) {
     this.provider = provider;
     this.model = model;
     this.apiKey = apiKey;

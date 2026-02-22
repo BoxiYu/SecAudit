@@ -38,7 +38,7 @@ export const dependencyRules: Rule[] = [
     category: 'Command Injection',
     severity: Severity.High,
     message: 'Shell execution detected — ensure input is sanitized',
-    pattern: /(?:exec|execSync|system|popen|subprocess\.call)\s*\(/,
+    pattern: /(?:child_process|cp|shell)[\s.)]*\.exec\s*\(|(?:execSync|system|popen|subprocess\.call)\s*\(/,
     cwe: 'CWE-78',
     owasp: 'A03:2021',
   },

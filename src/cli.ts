@@ -48,7 +48,7 @@ program
 
     // Merge config with CLI options (CLI takes precedence)
     const provider = options.provider ?? config.provider ?? 'openai-codex';
-    const model = options.model ?? config.model ?? 'gpt-5.2-codex';
+    const model = options.model ?? config.model ?? 'gpt-5.3-codex';
     const format = options.format ?? config.format ?? 'terminal';
     const severity = options.severity ?? config.severity ?? 'low';
 
@@ -211,7 +211,7 @@ program
     const config = `# secaudit configuration
 severity: low          # Minimum severity: critical, high, medium, low, info
 provider: openai       # LLM provider
-model: gpt-4o-mini     # LLM model
+model: gpt-5.3-codex     # LLM model
 format: terminal       # Output: terminal, json, sarif
 
 # Ignore patterns (glob)
@@ -301,8 +301,8 @@ program
   .command('verify')
   .description('Verify C/C++ findings in Docker sandbox with AddressSanitizer')
   .argument('[path]', 'Path to scan', '.')
-  .option('-p, --provider <provider>', 'LLM provider for PoC generation', 'openai')
-  .option('-m, --model <model>', 'LLM model', 'gpt-4o-mini')
+  .option('-p, --provider <provider>', 'LLM provider for PoC generation', 'openai-codex')
+  .option('-m, --model <model>', 'LLM model', 'gpt-5.3-codex')
   .option('-n, --max <n>', 'Max findings to verify', '10')
   .action(async (targetPath: string, options) => {
     const absPath = resolve(targetPath);

@@ -6,7 +6,7 @@ export const redosRules: Rule[] = [
     category: 'Regex DoS',
     severity: Severity.Medium,
     message: 'Nested quantifiers in regex — may cause catastrophic backtracking',
-    pattern: /(?:RegExp|\/)\s*.*(?:\+\+|\*\*|\+\*|\*\+|\{\d+,\}\+|\{\d+,\}\*)/,
+    pattern: /(?:new\s+RegExp\s*\(|=\s*\/).*(?:\+\+|\*\*|\+\*|\*\+|\{\d+,\}\+|\{\d+,\}\*)/,
     fileExtensions: ['.ts', '.js', '.py', '.rb', '.java', '.go'],
     cwe: 'CWE-1333',
     owasp: 'A06:2021',

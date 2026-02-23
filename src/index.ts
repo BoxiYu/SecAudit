@@ -13,4 +13,6 @@ export { DeepLLMScanner } from './scanner/deep-llm.js';
 export { RLMEngine } from './scanner/rlm-engine.js';
 export type { RLMConfig, RLMResult } from './scanner/rlm-engine.js';
 export { ensureSandboxImage, verifyCVuln, verifyFinding } from './scanner/sandbox.js';
+export { RLMRepl } from './scanner/rlm-repl.js';
+export { RLM_IMAGE, getDockerEnv, isDockerAvailable, ensureRLMImage } from './scanner/rlm-docker.js';
 export type { Finding, ScanResult, ScanOptions, Rule, Severity, FixSuggestion } from './types.js';

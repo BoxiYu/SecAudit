@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Finding, Severity } from '../types.js';
+import { getDockerBin, getDockerEnv } from './rlm-docker.js';
 
 const DOCKER_IMAGE = 'secaudit-sandbox';
 const TIMEOUT_SECONDS = 30;
@@ -18,7 +19,7 @@ WORKDIR /audit
  */
 export function ensureSandboxImage(): boolean {
   try {
-    execFileSync('docker', ['image', 'inspect', DOCKER_IMAGE], { stdio: 'ignore' });
+    execFileSync(getDockerBin(), ['image', 'inspect', DOCKER_IMAGE], { stdio: 'ignore' });
     return true;
   } catch {
     // Build the image
@@ -26,7 +27,7 @@ export function ensureSandboxImage(): boolean {
     try {
       mkdirSync(tmpDir, { recursive: true });
       writeFileSync(join(tmpDir, 'Dockerfile'), DOCKERFILE);
-      execFileSync('docker', ['build', '-t', DOCKER_IMAGE, tmpDir], {
+      execFileSync(getDockerBin(), ['build', '-t', DOCKER_IMAGE, tmpDir], {
         stdio: 'inherit',
         timeout: 120000,
       });

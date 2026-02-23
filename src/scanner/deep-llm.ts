@@ -92,6 +92,7 @@ Respond with the deduplicated JSON array in the same format. Respond ONLY with t
 export class DeepLLMScanner {
   private engine: RLMEngine;
   private quiet: boolean;
+  private useRepl: boolean;
 
   constructor(
     provider: string = 'openai-codex',
@@ -100,9 +101,11 @@ export class DeepLLMScanner {
     concurrency: number = 3,
     maxDepth: number = 2,
     maxIterations: number = 30,
+    useRepl: boolean = false,
   ) {
     this.engine = new RLMEngine({ provider, model, apiKey, concurrency, maxDepth, maxIterations });
     this.quiet = false;
+    this.useRepl = useRepl;
   }
 
   setQuiet(quiet: boolean): void {
@@ -133,9 +136,15 @@ export class DeepLLMScanner {
       return { findings: [], llmCalls: this.engine.currentCallCount, chunksAnalyzed: 0, modulesIdentified: [] };
     }
 
-    // Phase 2: Focused analysis per module
-    this.log('   Phase 2/4: Focused analysis — deep-diving into modules...');
-    const moduleFindings = await this.phaseFocusedAnalysis(files, modules);
+    // Phase 2: Focused analysis per module (REPL-enhanced if available)
+    let moduleFindings: Finding[];
+    if (this.useRepl) {
+      this.log('   Phase 2/4: REPL-enhanced focused analysis — deep-diving with code execution...');
+      moduleFindings = await this.phaseFocusedAnalysisREPL(targetPath, modules);
+    } else {
+      this.log('   Phase 2/4: Focused analysis — deep-diving into modules...');
+      moduleFindings = await this.phaseFocusedAnalysis(files, modules);
+    }
     this.log(`   Phase 2 found ${moduleFindings.length} findings across ${modules.length} modules`);
 
     // Phase 3: Cross-module analysis
@@ -331,6 +340,25 @@ export class DeepLLMScanner {
     }
 
     return deduped;
+  }
+
+  /**
+   * Phase 2 (REPL variant): Use the REPL sandbox for focused analysis.
+   * The LLM can write and execute Python code to programmatically analyze the codebase.
+   */
+  private async phaseFocusedAnalysisREPL(
+    targetPath: string,
+    modules: Array<{ module: string; reason: string; priority: number }>,
+  ): Promise<Finding[]> {
+    const moduleSummary = modules
+      .map((m) => `- ${m.module} (priority ${m.priority}): ${m.reason}`)
+      .join('\n');
+
+    const query = `Focus on these security-critical modules:\n${moduleSummary}`;
+
+    const { findings, iterations } = await this.engine.analyzeWithREPL(targetPath, query);
+    this.log(`   REPL analysis completed in ${iterations} iterations`);
+    return findings;
   }
 
   /**

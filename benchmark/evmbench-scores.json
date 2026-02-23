@@ -1,0 +1,755 @@
+{
+  "summary": {
+    "totalAudits": 40,
+    "totalVulns": 120,
+    "totalDetected": 12,
+    "detectionRate": 0.1,
+    "totalAward": 160551.56999999998,
+    "detectedAward": 2540.94
+  },
+  "audits": [
+    {
+      "audit": "2023-07-pooltogether",
+      "vulns": 2,
+      "detected": 2,
+      "findings": 8,
+      "details": [
+        {
+          "vulnId": "H-02",
+          "detected": true,
+          "reasoning": "The report explicitly flags the same root cause in Vault.sol: uint256-to-uint96 truncation in `_burn` (line 1139) without bounds checks, noting it can cause incorrect balance reduction/accounting in withdraw/redeem paths. This matches the described exploit where withdrawing > uint96 max burns only truncated shares and enables theft.",
+          "award": 2181.44
+        },
+        {
+          "vulnId": "H-04",
+          "detected": true,
+          "reasoning": "The report explicitly flags `Vault.sol` `mintYieldFee` (line 394) as callable by any external account and allowing minting yield-fee shares to an arbitrary recipient, matching the same root cause, function, and fix (add access control / enforce designated fee recipient).",
+          "award": 2.25
+        }
+      ]
+    },
+    {
+      "audit": "2023-10-nextgen",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 38,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific reentrancy in `MinterContract::mint`/`NextGenCore::mint` via `_safeMint` and `onERC721Received` that bypasses `maxCollectionPurchases`. It mentions ordering issues and supply counter desync, but not the same reentrancy root cause or fix (CEI/reentrancy guard around mint counters).",
+          "award": 0.15
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does include AuctionDemo issues, but it does not identify the specific timestamp equality bug (drain when block.timestamp == auctionEndTime) described in H-02. The listed findings are different flaws (highest bidder logic, modifier DoS, wrong payout recipient, failed refund handling, unbounded loops), not the same root cause/code path condition.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2023-12-ethereumcreditguild",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 52,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific H-01 bug where `claimGaugeRewards()` returns early on zero user gauge weight and fails to initialize `userGaugeProfitIndex`, enabling immediate reward capture after voting. It only mentions a generic timing/checkpoint race in `claimGaugeRewards`, which is a different root cause and fix.",
+          "award": 46.85
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific self-transfer-in-rebase caching bug in ERC20RebaseDistributor.transfer (msg.sender == to) that allows stealing unminted distributed rewards. It mentions uint248 truncation and other issues in the same file, but not this code path/root cause or fix.",
+          "award": 237.72
+        }
+      ]
+    },
+    {
+      "audit": "2024-01-canto",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 11,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific bug where `update_market()` passes a block-based epoch to `gauge_relative_weight_write` which expects a timestamp-based epoch, causing incorrect market weight/reward calculation. It only mentions an unbounded loop DoS in `update_market`, which is a different root cause and fix.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report mentions `update_market` only for potential unbounded iteration/DoS, not the specific epoch-boundary math bug (`nextEpoch = i + BLOCK_EPOCH` vs aligned next epoch) that causes incorrect `accCantoPerShare` reward calculation. Different root cause and fix.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2024-01-curves",
+      "vulns": 4,
+      "detected": 2,
+      "findings": 14,
+      "details": [
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific H-02 issue of unrestricted repeated fee claiming due to missing balance/credit updates after claim in FeeSplitter. It mentions different FeeSplitter issues (unprotected setCurves, fee offset reset on balance change, transfer DoS), but not the missing post-claim state update that enables unlimited claims.",
+          "award": 0.18
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The reported vulnerability is a specific honeypot/DoS in Curves._transferFees where referralFeeDestination is always called even when referralFee is 0, enabling subject creators to force sell reverts. The audit findings do not mention this zero-referral call/revert mechanism or honeypot attack path; they only note a generic reentrancy risk at the same line.",
+          "award": 1.08
+        },
+        {
+          "vulnId": "H-04",
+          "detected": true,
+          "reasoning": "The report explicitly identifies FeeSplitter.sol::setCurves as publicly callable without access control, allowing unauthorized replacement of the Curves contract reference. This matches the described vulnerability (unauthorized access to setCurves) in the same function and with the same fix (restrict to owner/manager).",
+          "award": 0
+        },
+        {
+          "vulnId": "H-05",
+          "detected": true,
+          "reasoning": "The report explicitly identifies the same flaw in Security.sol: `onlyOwner` (and also `onlyManager`) uses a bare comparison (`msg.sender == owner;`) without `require`/revert, so access control is not enforced. It points to the same code lines and recommends the same fix (`require(...)`).",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2024-01-init-capital-invitational",
+      "vulns": 3,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2024-01-renft",
+      "vulns": 6,
+      "detected": 0,
+      "findings": 7,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The provided audit findings do not mention Seaport order fulfillment, consideration array extension/tipping, malicious ERC20 tips, or the Create zone validation logic. Reported issues are deployment/configuration and role-management risks in deploy scripts, which are a different root cause and code path.",
+          "award": 2988.99
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The provided audit report does not mention the Safe fallback handler hijack issue (missing guard validation on setFallbackHandler) at all. Its findings are about deployment role centralization, config dependency checks, CREATE2 salt, zero-address validations, and logging—different root causes and code paths.",
+          "award": 88.09
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report does not mention the ERC1155 rental hijack/reentrancy issue involving Gnosis Safe fallback handlers or the rental fulfillment code path. It only lists deployment/configuration and role-management issues, which are different root causes and locations.",
+          "award": 1559.47
+        },
+        {
+          "vulnId": "H-05",
+          "detected": false,
+          "reasoning": "The report does not mention the Stop.sol `stopRent/stopRentBatch` order-validation/signature-replay flaw that enables stealing actively rented NFTs and freezing escrow payments. It only flags deployment/configuration and role-management issues in deployment scripts, which are different code paths and root causes.",
+          "award": 15.95
+        },
+        {
+          "vulnId": "H-06",
+          "detected": false,
+          "reasoning": "The reported findings only cover deployment/configuration and role-management issues in deployment scripts, not the Create.sol rental-order execution invariant bypass (zero-length executions) that enables draining Escrow via fake rentals. Different root cause and code path.",
+          "award": 2988.99
+        },
+        {
+          "vulnId": "H-07",
+          "detected": false,
+          "reasoning": "The report does not mention the partial-fill order-hash collision/rental removal bug in Create/Signer/Storage that can lock lender NFTs/ERC20. It only lists deployment/configuration and role-management issues in deployment scripts, which are different code paths and root causes.",
+          "award": 1559.47
+        }
+      ]
+    },
+    {
+      "audit": "2024-02-althea-liquid-infrastructure",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 14,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report only notes low-severity holder-array pollution from zero-amount transfers causing gas/DoS risk, but it does not identify the core high-severity exploit of adding duplicate holder entries to steal disproportionate rewards in `distribute()` (or via zero-amount burn). Same function area, but different impact/root cause coverage.",
+          "award": 7.18
+        }
+      ]
+    },
+    {
+      "audit": "2024-03-abracadabra-money",
+      "vulns": 4,
+      "detected": 0,
+      "findings": 79,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific MagicLP TWAP manipulation flaw where `_twapUpdate()` is called after reserve changes, causing cumulative price to use attacker-controlled post-trade reserves for the elapsed interval. It lists other MagicLP issues (unprotected init, tx.origin fee logic, ratioSync div-by-zero) but not the TWAP update-order vulnerability.",
+          "award": 725.1
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not mention the specific MagicLP `buyShares()` initial deposit rounding bug (`mulFloor` vs `mulCeil`) that can amplify error and break the I invariant/misprice targets. It only lists other MagicLP issues (unprotected init, tx.origin fee logic, ratioSync divide-by-zero), which are different root causes and code paths.",
+          "award": 6896.26
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report does not identify the specific bootstrap pool-creation loss mechanism for BlastOnboarding depositors (MIM/USDB amount mismatch/slippage during bootstrap via Router/MagicLP path). It lists other BlastOnboarding/Boot issues (approvals, router init, centralization, etc.) but not this exact code-path vulnerability or its fix.",
+          "award": 6896.26
+        },
+        {
+          "vulnId": "H-04",
+          "detected": false,
+          "reasoning": "The report does mention MagicLpAggregator, but it identifies different issues (missing return in _getReserves, signed-to-unsigned cast, decimals underflow). It does not describe reserve/LP price manipulation via flash-loan-driven reserve changes in latestAnswer(), which is the specified vulnerability.",
+          "award": 2446.85
+        }
+      ]
+    },
+    {
+      "audit": "2024-03-canto",
+      "vulns": 2,
+      "detected": 1,
+      "findings": 18,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific issue of excess native gas token (msg.value) remaining stuck in ASDRouter during successful redemption/send flows. It mentions untrusted lzCompose access and user-controlled send target at asdRouter lines, but not the fee/value accounting bug where only _feeForSend (or none on same-chain branch) is used and leftover msg.value is not refunded.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-02",
+          "detected": true,
+          "reasoning": "The report explicitly flags `asdRouter.lzCompose` as externally callable without trusted caller/source validation (CRIT at line 61), which is the same root flaw and code path as the described issue about permissionless compose execution enabling theft of bridged funds before intended processing.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2024-03-coinbase",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 26,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report mentions replayable owner mutations and separately mentions last-owner removal lockout, but it does not identify the specific index-based cross-chain replay issue where `removeOwnerAtIndex` can remove different owners at the same index across chains due to divergent owner ordering. The submitted vuln’s core mechanism (same signed index removing different owners per chain) is not explicitly captured.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2024-03-gitcoin",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 2,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report only flags issues in GTC.sol (missing allowance check in transferFrom and disabled mint cooldown). It does not mention IdentityStaking.release(), userTotalStaked invariant desynchronization, or underflow risk in withdraw paths from not updating userTotalStaked.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2024-03-neobase",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 16,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific issue of users permanently losing allocated voting power when a voted gauge is removed (inability to reallocate/clear prior vote due to gauge removal). It mentions different GaugeController bugs (remove order underflow, missing validation, missing cooldown, read-path underflow), but not the same root cause/code path impact described in H-01.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2024-03-taiko",
+      "vulns": 5,
+      "detected": 0,
+      "findings": 18,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The provided audit findings do not mention TaikoL2.anchor(), EIP-1559/basefee calculation, gasExcess/issuance inflation, or chain halting due to base fee mismatch. Reported issues are in vault/token bridge contracts and different root causes/code paths.",
+          "award": 19856
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not mention the LibProving/LibVerifying bond-slashing history flaw (validity/contest bonds being burned despite the transition later being verified). Its findings are about vault message decoding, cross-chain payload validation, migration logic, and related issues in different files/functions.",
+          "award": 7045.06
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The provided report does not mention ERC20Airdrop2.sol, the ongoingWithdrawals time-window boundary bug, or the withdraw() lockout at claimEnd + withdrawalWindow. Its findings are about vault/bridge decoding, validation, and migration issues in different contracts and code paths.",
+          "award": 2004.23
+        },
+        {
+          "vulnId": "H-04",
+          "detected": false,
+          "reasoning": "The provided findings do not mention the Taiko L1 proposer/AssignmentHook coinbase issue where a proposer can force another address to pay prover fees. The report focuses on vault message decoding, cross-chain payload validation, migration logic, and token handling in different contracts/code paths.",
+          "award": 2004.23
+        },
+        {
+          "vulnId": "H-05",
+          "detected": false,
+          "reasoning": "The provided findings do not mention TimelockTokenPool.withdraw(), signature replay, or missing nonce/replay protection. The report focuses on vault/message decoding, cross-chain payload trust, migration logic, and related issues, which are different code paths and root causes.",
+          "award": 1503.18
+        }
+      ]
+    },
+    {
+      "audit": "2024-04-noya",
+      "vulns": 20,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2024-05-arbitrum-foundation",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2024-05-loop",
+      "vulns": 1,
+      "detected": 1,
+      "findings": 12,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": true,
+          "reasoning": "The report flags the same core flaw in `PrelaunchPoints._claim()` (Line 262): using `address(this).balance` as `claimedAmount`, which lets users include pre-existing/donated ETH when claiming non-ETH tokens. This matches the described invariant bypass via ETH donation + claim to mint excess lpETH, and the suggested fix (use balance delta/pre-post accounting) is the same root-cause remediation.",
+          "award": 213.33
+        }
+      ]
+    },
+    {
+      "audit": "2024-05-munchables",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2024-05-olas",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 15,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not mention VoteWeighting.sol, nominee removal, revokeRemovedNomineeVotingPower, or any pointsSum.slope/bias accounting bug. Its findings are about staking/proxy/initializer/reentrancy issues in different contracts and code paths.",
+          "award": 1139.41
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not mention GnosisTargetDispenserL2, onTokenBridged, Omnibridge/AMB sender validation, or arbitrary bridged token+data message injection affecting staking incentives. Its findings are in different contracts and cover unrelated flaws (initializer access control, reentrancy, input validation, proxy checks, etc.).",
+          "award": 3627.2
+        }
+      ]
+    },
+    {
+      "audit": "2024-06-size",
+      "vulns": 4,
+      "detected": 0,
+      "findings": 72,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific fee-undercollection bug in sellCreditMarket when targeting a cash amount (rounding/formula issue in AccountingLibrary around the cited lines). It mentions a different SellCreditMarket issue (counterparty role mismatch) and generic TOCTOU concerns, but not the swap-fee miscalculation mechanism or fix.",
+          "award": 59.04
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific repay-vs-liquidateWithReplacement race causing borrower overpayment/double repayment on the same debt position. It mentions generic TOCTOU and reentrancy concerns, but not the concrete code path interaction between repay() and liquidateWithReplacement() or the same root-cause/fix.",
+          "award": 8669.79
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report does not identify the specific liquidation-fee math bug where the collateral remainder cap is miscomputed (using full liquidation CR instead of excess over debt) in executeLiquidate. It lists generic liquidation/reentrancy/TOCTOU issues, but not the incorrect remainder-cap/protocol-fee calculation in that code path.",
+          "award": 1859.68
+        },
+        {
+          "vulnId": "H-04",
+          "detected": false,
+          "reasoning": "The report does not identify the specific liquidation-profit miscalculation (incorrect liquidator incentive math in executeLiquidate/liquidation reward calculation). It mentions liquidation-related issues (reentrancy ordering, TOCTOU, allowance dependency) but not the wrong profit formula/root cause described.",
+          "award": 0.05
+        }
+      ]
+    },
+    {
+      "audit": "2024-06-thorchain",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 10,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report flags generic authorization/trust issues in transferAllowance/_routerDeposit (arbitrary router, missing vault auth), but it does not identify the specific rebasing-token allowance desynchronization bug (e.g., AMPL rebase changing balances vs stored allowance) in that code path. Root cause and exploit mechanism differ, so it is not the same vulnerability.",
+          "award": 3033.62
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The provided findings do not mention the specific ThorChain_Router vulnerability about incorrect event emission on failed ETH/native transfers (misreporting unsuccessful transferOut/transferOutAndCall outcomes to ThorChain). They focus on authorization/allowance/accounting and balance-sweep issues in AvaxRouter/AvaxAggregator, not the same root cause or code path.",
+          "award": 458.56
+        }
+      ]
+    },
+    {
+      "audit": "2024-06-vultisig",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 28,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The provided audit findings do not mention the specific `ILOPool.claim()` fee-collection bug where `pool.collect(..., type(uint128).max, type(uint128).max)` sweeps all accrued Uniswap fees and misroutes unclaimed users’ fees to the first claimer/fee taker. No issue in the report matches that code path, root cause, or fix.",
+          "award": 214.3
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report does not identify the specific DoS where an attacker manipulates the Uniswap pool price via single-sided liquidity so ILOManager.launch() fails the initialPoolPriceX96 == slot0() check. It mentions permissionless launch and timing/race issues, but not the price-manipulation mechanism in that code path.",
+          "award": 4670.03
+        }
+      ]
+    },
+    {
+      "audit": "2024-07-basin",
+      "vulns": 2,
+      "detected": 2,
+      "findings": 52,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": true,
+          "reasoning": "The report explicitly identifies that in `WellUpgradeable.sol` the `_authorizeUpgrade` function lacks owner/admin access control, allowing any caller to use `upgradeTo`/`upgradeToAndCall`. This is the same root cause, code path, and fix (`onlyOwner`/role check) as the described vulnerability.",
+          "award": 135.48
+        },
+        {
+          "vulnId": "H-02",
+          "detected": true,
+          "reasoning": "The report explicitly identifies the same Stable2.sol `decodeWellData` bug: it says the second defaulting check wrongly tests `decimal0` instead of `decimal1`, leaving `decimal1` as 0 when it should be set to 18, and proposes the exact fix (`if (decimal1 == 0)`).",
+          "award": 8.44
+        }
+      ]
+    },
+    {
+      "audit": "2024-07-benddao",
+      "vulns": 7,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2024-07-munchables",
+      "vulns": 5,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2024-07-traitforge",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 41,
+      "details": [
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific griefing vector where a transferred NFT can be burned/nuked by a later owner to reduce the original minter’s airdrop allocation tied to `initialOwner`. It mentions related but different issues (e.g., burn accounting only before airdrop start, operator payout redirection), not the same root cause/code-path exploitation.",
+          "award": 72.88
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report flags taxCut bound issues (especially division-by-zero/DoS) in NukeFund and EntityForging, but it does not identify the specific incorrect percentage math when taxCut != 10 (using division as inverse percent leading to wrong fee split). Same functions are referenced, but the root cause and impact differ.",
+          "award": 151.03
+        }
+      ]
+    },
+    {
+      "audit": "2024-08-phi",
+      "vulns": 6,
+      "detected": 0,
+      "findings": 36,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The target vuln is specifically a cross-chain replay in PhiFactory.signatureClaim due to ignoring encoded chainId when called directly. The report flags a different issue in that function (minter_ not bound to msg.sender) and only mentions generic replay/domain-separation risk in Cred.sol, not this exact code path/mechanism/fix.",
+          "award": 938.08
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The target issue is in PhiFactory.createArt: signature replay/front-running because signed data is not bound to caller or CreateConfig fields (artist/royalty receiver/BPS). The report does not mention createArt or this config-binding flaw; it instead flags different signature-binding issues in signatureClaim/merkleClaim and a generic replay/domain-separation note in Cred.sol.",
+          "award": 21.42
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The provided audit findings do not mention the specific shareBalance/EnumerableMap zero-balance entry accumulation in Cred._updateCuratorShareBalance, nor the resulting gas-limit DoS in CuratorRewardsDistributor enumeration. The listed issues are different vulnerabilities.",
+          "award": 17.25
+        },
+        {
+          "vulnId": "H-04",
+          "detected": false,
+          "reasoning": "The report does not identify the specific `updateArtSettings()` endTime-forced-extension/backrun minting vulnerability. It mentions other PhiFactory issues (e.g., missing minter binding, tx.origin usage) but nothing about post-event updates requiring endTime >= block.timestamp enabling renewed `merkleClaim()` minting in that code path.",
+          "award": 7943
+        },
+        {
+          "vulnId": "H-06",
+          "detected": false,
+          "reasoning": "The report mentions a generic reentrancy risk on buy/sell functions, but it does not identify the specific create-cred reentrancy where refund-triggered reentry overwrites cred data before credIdCounter increment, enabling cheap-buy/expensive-sell drain across bonding curves. Different root cause/code path and exploit mechanics.",
+          "award": 9.15
+        },
+        {
+          "vulnId": "H-07",
+          "detected": false,
+          "reasoning": "The target issue is specifically about `PhiFactory.updateArtSettings` allowing artists to arbitrarily change post-mint art settings (URI, royalty, soulBounded, etc.). The provided report does not mention this function or this mutable-settings/rug mechanism; it discusses different vulnerabilities (claim binding, access control, fee bounds, etc.).",
+          "award": 41.86
+        }
+      ]
+    },
+    {
+      "audit": "2024-08-wildcat",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 96,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific closed-market withdrawal batch rounding/invariant break where early execution before all requests are queued lets some users over-withdraw and causes later withdrawals to fail due to insufficient normalizedUnclaimedWithdrawals. It only mentions generic auth/input issues in executeWithdrawal and a division-by-zero check, not this root-cause logic flaw in batch accounting.",
+          "award": 20251.54
+        }
+      ]
+    },
+    {
+      "audit": "2024-12-secondswap",
+      "vulns": 3,
+      "detected": 0,
+      "findings": 31,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific listing-order/stepsClaimed inheritance bug in StepVesting+Marketplace (where first transferred listing’s stepsClaimed contaminates subsequent buyer allocations). It mentions related StepVesting step accounting issues (claimableSteps overflow/underflow) but in different logic paths and with different root cause/fix.",
+          "award": 4.14
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific bug where `transferVesting` assigns `stepsClaimed` from a global/current step causing incorrect vesting state for buyers and premature unlocks. It mentions different issues (untrusted `_stepVesting` authorization in VestingDeployer and a separate `stepsClaimed` overflow/capping bug in StepVesting), but not this same root cause/code-path fix.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report does mention `transferVesting` in `SecondSwap_StepVesting.sol`, but its finding is about missing grantor consent/over-privileged reassignment (access control), not the incorrect `releaseRate` recalculation that ignores already-claimed amount and enables over-claiming. Different root cause and fix.",
+          "award": 87.18
+        }
+      ]
+    },
+    {
+      "audit": "2025-01-liquid-ron",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 21,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not mention the `totalAssets()` miscalculation involving `operatorFeeAmount` and fee withdrawal dilution in LiquidRon. It lists unrelated issues (auth modifier bug, array length checks, reentrancy, etc.) but not this specific accounting flaw/code path.",
+          "award": 0.03
+        }
+      ]
+    },
+    {
+      "audit": "2025-01-next-generation",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 23,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does identify the untrusted/user-supplied `domainSeparator` issue in `Forwarder.sol`, but it does not mention the missing deadline/expiration check (indefinite signature validity) that is part of the specified vulnerability. Therefore it does not fully describe the same combined vulnerability.",
+          "award": 3.65
+        }
+      ]
+    },
+    {
+      "audit": "2025-02-thorwallet",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 8,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific cap-exceeded flaw in MergeTgt.onTokenTransfer (no enforcement of TGT_TO_EXCHANGE leading to late users being unable to claim/refund). It only mentions a related underflow in withdrawRemainingTitn but attributes it to general solvency deficits (e.g., owner withdrawals/deflation), not to exceeding the hardcoded exchange amount in the same code path/root cause.",
+          "award": 0.35
+        }
+      ]
+    },
+    {
+      "audit": "2025-04-forte",
+      "vulns": 5,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2025-04-virtuals",
+      "vulns": 4,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2025-05-blackhole",
+      "vulns": 1,
+      "detected": 0,
+      "findings": 0,
+      "details": []
+    },
+    {
+      "audit": "2025-06-panoptic",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 13,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific premium-sign inversion bug in `computeNAV` where `poolExposure1` is calculated as `longPremium - shortPremium` instead of `shortPremium - longPremium` (lines ~134-136). It mentions other input-validation/trust issues and generic arithmetic concerns, but not this exact code-path logic error or its fix.",
+          "award": 118.95
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific NAV inconsistency caused by when underlying token balances are added relative to per-pool `Math.max(..., 0)` in `computeNAV`. It mentions other `computeNAV` issues (untrusted input, length checks, dedup logic, etc.) but not this code-path/timing flaw about underlying-token-in-pool vs not-in-pool treatment.",
+          "award": 5013.61
+        }
+      ]
+    },
+    {
+      "audit": "2025-10-sequence",
+      "vulns": 2,
+      "detected": 0,
+      "findings": 81,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific chained-signature/checkpointer-flag bypass in BaseSig.recover/recoverChained (bit 0x40 disabled leading to zeroed checkpointer/snapshot and skipped validation). It only mentions a generic untrusted checkpointer external call, which is a different root cause and fix.",
+          "award": 20366.77
+        },
+        {
+          "vulnId": "H-02",
+          "detected": false,
+          "reasoning": "The report does not identify the specific partial-signature replay/frontrunning issue caused by failed BEHAVIOR_REVERT_ON_ERROR session multicalls keeping signatures reusable. It mentions related but different issues (e.g., generic replay risk in selfExecute, cross-chain replay flags, and other session flaws), not this exact code path/mechanism/fix.",
+          "award": 20366.77
+        }
+      ]
+    },
+    {
+      "audit": "2026-01-tempo-feeamm",
+      "vulns": 1,
+      "detected": 1,
+      "findings": 7,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": true,
+          "reasoning": "The report explicitly identifies reentrancy in `burn` due to transferring tokens before updating `liquidityBalances`, `totalSupply`, and reserves (CEI violation), and notes potential double-withdrawal/drain via malicious token callbacks. This matches the same root cause, function, and fix.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2026-01-tempo-mpp-streams",
+      "vulns": 3,
+      "detected": 1,
+      "findings": 7,
+      "details": [
+        {
+          "vulnId": "H-01",
+          "detected": false,
+          "reasoning": "The report does not identify the specific cross-chain replay issue in settle() caused by missing chainId/domain binding in voucher verification. It mentions weak signature domain for cooperative close() only, which is a different code path and mechanism.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-02",
+          "detected": true,
+          "reasoning": "The report explicitly flags the same issue in `close()`: missing checks on `voucher.cumulativeAmount` relative to `channel.settled`/`deposit`, causing `voucher.cumulativeAmount - channel.settled` and `channel.deposit - voucher.cumulativeAmount` underflow. It recommends the same fix (enforce bounds/monotonicity before arithmetic), matching the described vulnerability and code path.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report mentions missing `authorizedSigner != address(0)` validation, but characterizes impact as DoS/funds lock, not signature-validation bypass. It does not identify the specific exploit where invalid signatures recover to `address(0)` and then pass signer checks in settle/close when `authorizedSigner` is zero.",
+          "award": 0
+        }
+      ]
+    },
+    {
+      "audit": "2026-01-tempo-stablecoin-dex",
+      "vulns": 3,
+      "detected": 2,
+      "findings": 6,
+      "details": [
+        {
+          "vulnId": "H-02",
+          "detected": true,
+          "reasoning": "The report explicitly identifies that `cancel(uint128 orderId)` lacks a check that `msg.sender` equals `order.maker`, allowing anyone to cancel others’ orders, and recommends adding `if (order.maker != msg.sender) revert Unauthorized();` before `_cancelOrder`—the same root cause, function, and fix.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-03",
+          "detected": false,
+          "reasoning": "The report does not mention the linked-list cleanup bug in _cancelOrder (stale prev/next/remaining leading to double cancellation/refund). It only flags missing authorization on cancel(), which is a different root cause and fix.",
+          "award": 0
+        },
+        {
+          "vulnId": "H-04",
+          "detected": true,
+          "reasoning": "The report explicitly identifies the same flaw in the same code path: `_processWithdrawal` uses unchecked subtraction without validating `balances[user][token] >= amount` (and `totalDeposits`), which can underflow and enable over-withdrawal/accounting corruption via `emergencyWithdraw`. It also recommends the same fix: add sufficiency checks and avoid unchecked arithmetic.",
+          "award": 0
+        }
+      ]
+    }
+  ]
+}

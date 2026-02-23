@@ -3,7 +3,7 @@ import { RLMEngine, type RLMConfig, type RLMResult } from './rlm-engine.js';
 
 // --- Prompts for each RLM phase ---
 
-const RECON_PROMPT = `You are an elite security researcher performing reconnaissance on a codebase.
+const RECON_PROMPT_DEFAULT = `You are an elite security researcher performing reconnaissance on a codebase.
 Given the project file listing below, identify the security-critical modules/directories that need deep analysis.
 
 Focus on:
@@ -21,7 +21,41 @@ Respond with a JSON array of objects:
 
 Rank by priority (1 = highest risk). Return ONLY the JSON array.`;
 
-const FOCUSED_ANALYSIS_PROMPT = `You are an elite security researcher performing a DEEP code audit.
+const RECON_PROMPT_SOLIDITY = `You are an elite smart contract security researcher performing reconnaissance.
+Given the Solidity project file listing below, identify contracts that need deep security analysis.
+
+Focus on (highest to lowest priority):
+- Core protocol logic (vaults, pools, staking, lending, AMM, bridges)
+- Token contracts with custom mint/burn/transfer logic
+- Access control / governance / admin functions
+- Oracle integrations and price feeds
+- Upgradeable proxy contracts and initializers
+- Cross-contract interaction patterns (delegatecall, callbacks, flash loans)
+- Reward/fee distribution and accounting logic
+- Withdrawal/claim mechanisms
+
+IGNORE: test files, mock contracts, interfaces-only files, standard OpenZeppelin imports
+
+Respond with a JSON array of objects:
+[{ "module": "<directory/path>", "reason": "<why this is security-critical>", "priority": 1-5 }]
+
+Rank by priority (1 = highest risk). Return ONLY the JSON array.`;
+
+function getReconPrompt(targetPath: string): string {
+  // Check if this is a Solidity project
+  const fs = require('fs');
+  const path = require('path');
+  try {
+    const files = fs.readdirSync(targetPath, { recursive: true }) as string[];
+    const hasSol = files.some((f: string) => String(f).endsWith('.sol'));
+    if (hasSol) return RECON_PROMPT_SOLIDITY;
+  } catch {}
+  return RECON_PROMPT_DEFAULT;
+}
+
+const RECON_PROMPT = RECON_PROMPT_DEFAULT; // backward compat
+
+const FOCUSED_ANALYSIS_PROMPT_DEFAULT = `You are an elite security researcher performing a DEEP code audit.
 You have access to MULTIPLE related files from the same module.
 Find vulnerabilities that ONLY become visible when understanding cross-file interactions:
 
@@ -44,6 +78,53 @@ For each vulnerability, respond with a JSON array:
 }]
 
 Return [] if nothing found. Respond ONLY with the JSON array.`;
+
+const FOCUSED_ANALYSIS_PROMPT_SOLIDITY = `You are an elite smart contract auditor performing a DEEP security audit.
+You have access to MULTIPLE related Solidity files. Find HIGH-SEVERITY LOSS-OF-FUNDS vulnerabilities.
+
+CRITICAL patterns to check across files:
+
+1. **Accounting errors**: Do deposits/withdrawals/fees/rewards calculate correctly? Check:
+   - Share price manipulation (first depositor, donation/inflation attacks)
+   - Fee-on-transfer token incompatibility in accounting
+   - Rounding direction (should favor protocol, not user)
+   - totalAssets/totalSupply/balanceOf consistency
+
+2. **Access control across contracts**: 
+   - Can external contracts call sensitive functions via callbacks/flash loans?
+   - Are initializers protected? Can they be called twice?
+   - Do modifiers actually revert (require vs bare expression)?
+
+3. **State consistency across calls**:
+   - CEI violations enabling reentrancy
+   - State read in contract A, changed in contract B before A finishes
+   - Flash loan enabling state manipulation between checks
+
+4. **Cross-contract trust**:
+   - Does contract A trust return values from contract B without validation?
+   - Can an attacker deploy a malicious contract that mimics expected interface?
+   - Signature replay across contracts/chains (missing domain separator, nonce)
+
+5. **Token/value flow correctness**:
+   - Can users extract more value than deposited through any sequence of operations?
+   - Are there paths where tokens get stuck (no withdrawal mechanism)?
+   - Do liquidation/claiming paths handle edge cases (zero amounts, dust, blacklisted addresses)?
+
+Be EXTREMELY SPECIFIC: name the exact function, line, mechanism, and a concrete exploit scenario.
+
+For each vulnerability:
+[{
+  "file": "<relative path>",
+  "line": <line number>,
+  "severity": "critical" | "high" | "medium" | "low",
+  "category": "<category>",
+  "message": "<root cause + exploit scenario + impact>",
+  "rule": "RLM_<short_id>"
+}]
+
+Return [] if nothing found. Respond ONLY with the JSON array.`;
+
+const FOCUSED_ANALYSIS_PROMPT = FOCUSED_ANALYSIS_PROMPT_DEFAULT;
 
 const CROSS_MODULE_PROMPT = `You are an elite security researcher performing cross-module vulnerability analysis.
 You are given findings from individual module analyses. Your job is to identify CROSS-MODULE vulnerabilities
@@ -178,8 +259,9 @@ export class DeepLLMScanner {
     files: Array<{ path: string; content: string; lines: string[]; size: number }>,
   ): Promise<Array<{ module: string; reason: string; priority: number }>> {
     const tree = this.engine.buildFileTree(files);
+    const reconPrompt = getReconPrompt(files[0]?.path ? require('path').dirname(files[0].path) : '.');
     const text = await this.engine.llmQuery(
-      RECON_PROMPT,
+      reconPrompt,
       `Here is the project structure:\n\n${tree}`,
     );
 
@@ -227,7 +309,7 @@ export class DeepLLMScanner {
         const context = this.engine.formatFilesForLLM(chunk);
         const fileList = chunk.map((f) => f.path).join(', ');
         calls.push({
-          systemPrompt: FOCUSED_ANALYSIS_PROMPT,
+          systemPrompt: chunk.some(f => f.path.endsWith('.sol')) ? FOCUSED_ANALYSIS_PROMPT_SOLIDITY : FOCUSED_ANALYSIS_PROMPT_DEFAULT,
           userPrompt: `Analyze these ${chunk.length} files in module "${mod.module}" (${mod.reason}) for security vulnerabilities:\n${context}`,
           moduleName: mod.module,
         });

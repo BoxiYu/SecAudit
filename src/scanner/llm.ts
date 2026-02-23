@@ -14,6 +14,7 @@ const DEFAULT_IGNORE = [
 const CODE_EXTENSIONS = new Set([
   '.ts', '.js', '.jsx', '.tsx', '.py', '.rb', '.java', '.go',
   '.php', '.cs', '.rs', '.c', '.cpp', '.h', '.vue', '.svelte',
+  '.sol', '.vy', '.cairo',  // Smart contracts
 ]);
 
 const MAX_FILE_SIZE = 50_000; // 50KB per file for LLM analysis

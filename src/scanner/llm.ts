@@ -9,6 +9,11 @@ const DEFAULT_IGNORE = [
   'node_modules/**', 'dist/**', 'build/**', '.git/**',
   '*.min.js', '*.min.css', '*.map',
   'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
+  // Solidity test/mock files (high false positive rate)
+  '**/test/**', '**/tests/**', '**/mock/**', '**/mocks/**',
+  '**/script/**', '**/scripts/**', '**/test-helpers/**',
+  '**/forge-std/**', '**/openzeppelin-contracts/**',
+  'Mock*.sol', 'Test*.sol', '*Mock.sol', '*Test.sol',
 ];
 
 const CODE_EXTENSIONS = new Set([

@@ -86,6 +86,26 @@ Focus ONLY on exploitable vulnerabilities in these categories:
 - State machine violations (can functions be called in wrong order?)
 - Missing deadline/expiry checks
 
+**Accounting Invariant Checks (CRITICAL - 30% of real-world high-severity bugs):**
+- Can totalShares * pricePerShare != totalAssets after a sequence of deposits/withdrawals?
+- Does the first depositor get fair shares? Can deposit(1 wei) + donate() inflate share price?
+- Are rewards/fees calculated on stale balances vs current balances?
+- Do intermediate rounding errors accumulate across operations?
+- Does contract use address(this).balance or balanceOf(address(this)) that can be manipulated by direct transfer/selfdestruct?
+
+**Replay & Frontrun (20% of real-world bugs):**
+- Can the same signature be replayed on another chain, after a state change, or by a different caller?
+- Is nonce/deadline/chainId/domainSeparator included in ALL signature schemes?
+- Can admin functions be frontrun to change parameters before user tx executes?
+- Can an order/bid be replayed after partial state changes?
+
+**Protocol Integration (25% of real-world bugs):**
+- Does code handle fee-on-transfer tokens correctly (actual received vs parameter amount)?
+- Are return values from external calls (transfer, swap, oracle) validated?
+- Can oracle prices be manipulated within a single transaction (flash loan)?
+- Does TWAP window resist manipulation (need >30 min window with sufficient liquidity)?
+- Are external protocol assumptions still valid (e.g., Uniswap V3 tick spacing, Aave health factor)?
+
 Be SPECIFIC: identify the exact function, the exact line, the exact mechanism of exploitation, and the exact impact (e.g., "attacker drains X tokens by..."). Generic observations like "consider adding reentrancy guard" are NOT useful.
 
 If no vulnerabilities are found, return an empty array: []

@@ -166,14 +166,31 @@ program
       filtered = filtered.filter((f) => enabled.has(f.category.toLowerCase().replace(/\s+/g, '-')) || enabled.has(f.rule));
     }
 
-    // Deduplicate (same file + line + rule)
-    const seen = new Set<string>();
-    const deduped = filtered.filter((f) => {
-      const key = `${f.file}:${f.line}:${f.rule}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Smart deduplicate — merge findings on same file:line (±3 lines), keep highest severity
+    const SEVERITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+    const dedupGroups = new Map<string, Finding[]>();
+    for (const f of filtered) {
+      const normFile = f.file.replace(/^\.\//, '');
+      let matched = false;
+      for (const [key, group] of dedupGroups) {
+        const [gFile, gLineStr] = key.split(':');
+        if (gFile === normFile && Math.abs(f.line - parseInt(gLineStr, 10)) <= 3) {
+          group.push(f);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) dedupGroups.set(`${normFile}:${f.line}`, [f]);
+    }
+    const deduped: Finding[] = [];
+    for (const group of dedupGroups.values()) {
+      group.sort((a, b) => {
+        const sd = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0);
+        if (sd !== 0) return sd;
+        return (b.message?.length ?? 0) - (a.message?.length ?? 0);
+      });
+      deduped.push(group[0]);
+    }
 
     // Filter baseline
     let final = deduped;

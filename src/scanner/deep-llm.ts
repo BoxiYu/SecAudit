@@ -365,12 +365,37 @@ export class DeepLLMScanner {
    * Simple deduplication by file + line + rule.
    */
   private simpleDeduplicate(findings: Finding[]): Finding[] {
-    const seen = new Set<string>();
-    return findings.filter((f) => {
-      const key = `${f.file}:${f.line}:${f.rule}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Group by file:line (within ±3 lines) and keep the highest severity / best description
+    const groups = new Map<string, Finding[]>();
+    for (const f of findings) {
+      // Normalize file path
+      const normFile = f.file.replace(/^\.\//, '');
+      let matched = false;
+      for (const [key, group] of groups) {
+        const [gFile, gLineStr] = key.split(':');
+        const gLine = parseInt(gLineStr, 10);
+        if (gFile === normFile && Math.abs(f.line - gLine) <= 3) {
+          group.push(f);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        groups.set(`${normFile}:${f.line}`, [f]);
+      }
+    }
+
+    const severityRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+    const result: Finding[] = [];
+    for (const group of groups.values()) {
+      // Pick the finding with highest severity, then longest message (most detail)
+      group.sort((a, b) => {
+        const sevDiff = (severityRank[b.severity] ?? 0) - (severityRank[a.severity] ?? 0);
+        if (sevDiff !== 0) return sevDiff;
+        return (b.message?.length ?? 0) - (a.message?.length ?? 0);
+      });
+      result.push(group[0]);
+    }
+    return result;
   }
 }

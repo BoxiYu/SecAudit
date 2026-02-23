@@ -290,13 +290,17 @@ export class RLMEngine {
 
         transcript.push(`[Assistant response ${i + 1}]:\n${response}`);
 
-        // Check for FINAL_ANSWER
-        if (response.includes('FINAL_ANSWER')) {
+        // Check for FINAL_ANSWER — but require at least 3 iterations of actual REPL usage first
+        if (response.includes('FINAL_ANSWER') && iterations >= 3) {
           const answerMatch = response.match(/FINAL_ANSWER[\s\S]*?(\[[\s\S]*\])/);
           if (answerMatch) {
             findings.push(...this.parseFindings(answerMatch[1]));
           }
           break;
+        } else if (response.includes('FINAL_ANSWER') && iterations < 3) {
+          // Strip FINAL_ANSWER and force more analysis
+          transcript.push(`[System]: You must use the REPL environment to programmatically analyze the code before giving your final answer. You have only done ${iterations} iteration(s). Write Python code in \`\`\`repl\`\`\` blocks to:\n1. Use rg (ripgrep) to search for dangerous patterns\n2. Read and analyze specific files\n3. Trace data flows from user input to sensitive operations\nDo at least 3 rounds of code analysis before FINAL_ANSWER.`);
+          continue;
         }
 
         // Extract and execute ```repl``` code blocks
@@ -345,34 +349,38 @@ export class RLMEngine {
   }
 }
 
-const REPL_SYSTEM_PROMPT = `You are an elite security researcher with access to a REPL environment for analyzing code.
-The target codebase is mounted at /code (read-only).
+const REPL_SYSTEM_PROMPT = `You are an elite security researcher. You MUST use the REPL to programmatically analyze code — do NOT just read and guess.
 
-Available tools:
-1. Write Python code in \`\`\`repl\`\`\` blocks to analyze the code
-2. Use print() to see results — this is how you get information back
-3. Available in REPL: ripgrep (rg via subprocess), python3, tree-sitter for AST parsing
-4. The /workspace directory is writable for scratch files
-5. Use llm_query(prompt) to ask a sub-LLM question from within Python
-6. Use llm_query_batched(prompts) for multiple sub-LLM queries
+The target codebase is at /code (read-only). /workspace is writable.
 
-Strategy: Use the REPL to programmatically analyze the codebase:
-- Use subprocess.run(["rg", ...]) or os.popen("rg ...") to search for patterns
-- Use tree-sitter to parse ASTs and trace data flow
-- Use Python to build call graphs, trace taint paths, find auth gaps
-- Combine programmatic analysis with your security expertise
-- Start broad (find entry points, input handling) then go deep on suspicious areas
+## REPL Usage (MANDATORY)
+Write Python code in \`\`\`repl\`\`\` blocks. Use print() to see results.
 
-When you have completed your analysis, output FINAL_ANSWER followed by a JSON array of findings:
+## Available Tools
+- **ripgrep**: \`subprocess.run(["rg", "-n", "pattern", "/code"], capture_output=True, text=True)\`
+- **tree-sitter**: \`import tree_sitter_languages; parser = tree_sitter_languages.get_parser("typescript")\`
+- **file I/O**: \`open("/code/path").read()\`
+- **networkx**: Build call graphs, trace data flow
+- **llm_query(prompt)**: Ask a sub-LLM for analysis help
+- **llm_query_batched(prompts)**: Multiple parallel sub-LLM queries
+
+## Required Analysis Steps (do ALL of these)
+1. **Discover**: Use rg to find all user input sources (req.body, req.query, req.params, req.headers)
+2. **Trace**: For each input, trace where it flows (SQL queries, file ops, eval, redirects, responses)
+3. **Auth**: Check every route for authentication/authorization enforcement
+4. **Validate**: Check if inputs are validated/sanitized before use
+5. **Cross-file**: Trace data across file boundaries (imports, shared modules)
+
+## Rules
+- You MUST write and execute code for at least 3 rounds before FINAL_ANSWER
+- Each round should explore a different aspect (input sources, then data flow, then auth, etc.)
+- Do NOT give FINAL_ANSWER without having actually run code analysis
+- Print findings as you discover them
+
+## Output Format
+After thorough analysis, output:
 FINAL_ANSWER
-[{
-  "file": "<relative path>",
-  "line": <line number>,
-  "severity": "critical" | "high" | "medium" | "low",
-  "category": "<category>",
-  "message": "<detailed description>",
-  "rule": "RLM_REPL_<short_id>"
-}]`;
+[{"file":"<path>","line":<n>,"severity":"critical|high|medium|low","category":"<cat>","message":"<detailed>","rule":"RLM_REPL_<id>"}]`;
 
 /**
  * Extract ```repl``` code blocks from LLM response text.

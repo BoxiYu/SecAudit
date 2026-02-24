@@ -36,6 +36,7 @@ program
   .option('--baseline', 'Filter out baseline findings')
   .option('-q, --quiet', 'Quiet mode — only exit code')
   .option('-v, --verbose', 'Show detailed rule information')
+  .option('--full', 'Full pipeline: LLM scan + RLM deep + Agent V2 (maximum detection)')
   .option('--deep', 'Deep LLM mode — recursive cross-file analysis (RLM)')
   .option('--agent', 'Agent mode v1 — iterative audit (transcript-based)')
   .option('--agent2', 'Agent mode v2 — real tool-use agent with multi-turn conversation')
@@ -133,8 +134,14 @@ program
       if (!options.quiet) console.log(`   Found ${gitResult.findings.length} issues from ${gitResult.commitsAnalyzed} security commits`);
     }
 
+    // --full enables all stages
+    const isFull = !!options.full;
+    if (isFull && !options.quiet) {
+      console.log('\n🔥 Full pipeline mode: LLM scan + RLM deep + Agent V2');
+    }
+
     // Agent V2 mode — real tool use
-    if (options.agent2) {
+    if (options.agent2 || isFull) {
       const resolvedKeyAgent2 = await getApiKey(provider);
       const agentBudget = parseInt(options.agentBudget, 10) || 30;
       const agent2 = new AgentV2Scanner({
@@ -170,7 +177,7 @@ program
     }
 
     // Deep LLM analysis (cross-file, RLM recursive)
-    if (options.deep) {
+    if (options.deep || isFull) {
       const { DeepLLMScanner } = await import('./scanner/deep-llm.js');
       const resolvedKey3 = await getApiKey(provider);
       const maxDepth = parseInt(options.maxDepth, 10) || 2;

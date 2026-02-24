@@ -86,25 +86,34 @@ const TOOLS: Tool[] = [
   },
 ];
 
-const SYSTEM_PROMPT_SOLIDITY = `You are an elite smart contract security auditor. You have access to tools to read files, search code, and report vulnerabilities.
+const SYSTEM_PROMPT_SOLIDITY = `You are an elite smart contract security auditor performing a comprehensive code audit. You have tools to read files, search code, run shell commands, and report vulnerabilities.
 
-Your goal: find ALL HIGH-SEVERITY vulnerabilities that could lead to LOSS OF FUNDS.
+RULES:
+- You MUST read ALL important source files before finishing. Do NOT stop after reading 2-3 files.
+- Use run_command with "rg" or "grep" for powerful regex searches across the codebase.
+- Use report_finding for each confirmed vulnerability. Do NOT just describe findings in text.
+- Call "done" ONLY after you have read all core contracts and thoroughly analyzed them.
 
-Strategy:
-1. Start by listing files to understand the project structure
-2. Read the main contracts (largest files, entry points)
-3. For each contract, check:
-   - Access control on ALL state-changing functions
-   - Reentrancy (CEI violations, callbacks before state updates)
-   - Math errors (rounding, overflow in unchecked, division before multiplication)
-   - Oracle/price manipulation
-   - Signature replay (missing chainId, nonce, domain separator)
-   - Accounting bugs (shares vs assets, fee-on-transfer)
-   - Cross-contract trust assumptions
-4. Use search to trace data flows across contracts
-5. Report only HIGH/CRITICAL findings you are confident about
+AUDIT METHODOLOGY (follow this order):
+1. list_files to see project structure
+2. Read ALL core contracts (skip interfaces/libraries unless needed)
+3. For EACH contract with state-changing functions, check:
+   a. Access control: who can call each external/public function? Missing onlyOwner/onlyAdmin?
+   b. Reentrancy: external calls before state updates? CEI violations?
+   c. Math: unchecked blocks with user input? Division before multiplication? Rounding direction?
+   d. Value flow: does deposit amount == credited amount? (fee-on-transfer, rebasing tokens)
+   e. Oracle trust: can prices be manipulated in one transaction? (flash loans, donations)
+   f. Signatures: missing chainId, nonce, deadline, domain separator?
+   g. Accounting: can totalShares * pricePerShare != totalAssets after operations?
+4. Use "rg -n 'pattern'" to trace cross-contract data flows:
+   - rg -n 'transfer\(|transferFrom\(' — find all token transfers
+   - rg -n 'msg.sender|tx.origin' — find auth patterns
+   - rg -n 'balanceOf|totalSupply' — find balance-dependent logic
+   - rg -n 'external|public' — find all entry points
+5. Report each finding with report_finding tool (exact file, line, exploit scenario)
+6. Only call done when you've covered all contracts
 
-Be thorough — read every contract. Don't stop early.`;
+Focus on HIGH-SEVERITY LOSS-OF-FUNDS issues only. Be specific with exploit scenarios.`;
 
 const SYSTEM_PROMPT_DEFAULT = `You are an elite security auditor. You have access to tools to read files, search code, and report vulnerabilities.
 
@@ -292,10 +301,15 @@ export class AgentV2Scanner {
   async scan(targetPath: string): Promise<{ findings: Finding[]; iterations: number }> {
     const m = createModel(this.config.provider, this.config.model, this.config.apiKey);
     const findings: Finding[] = [];
+    const filesRead = new Set<string>();
+    let searchCount = 0;
+    let commandCount = 0;
 
-    // Detect Solidity project
+    // Detect Solidity project and count source files
     const fileList = listSourceFiles(targetPath);
     const isSolidity = fileList.includes('.sol');
+    const sourceFileCount = (fileList.match(/\.\w+\s+\(/g) || []).length;
+    const minFilesBeforeDone = Math.min(Math.max(5, Math.floor(sourceFileCount * 0.5)), 20);
 
     const messages: Message[] = [
       {
@@ -335,12 +349,18 @@ export class AgentV2Scanner {
       const toolCalls = response.content.filter((c): c is ToolCall => c.type === 'toolCall');
       
       if (toolCalls.length === 0) {
-        // No tool calls — model is done or just talking
-        const textContent = response.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map(c => c.text)
-          .join('');
-        this.log(`[${i + 1}/${this.config.maxIterations}] Text response (no tool calls)`);
+        this.log(`[${i + 1}/${this.config.maxIterations}] Text response (no tool calls, ${filesRead.size} files read)`);
+        
+        // If model stopped but hasn't read enough files, nudge it to continue
+        if (response.stopReason === 'stop' && filesRead.size < minFilesBeforeDone && i < this.config.maxIterations - 2) {
+          this.log(`Nudging: only ${filesRead.size}/${minFilesBeforeDone} files read`);
+          messages.push({
+            role: 'user' as const,
+            content: `You've only read ${filesRead.size} files out of ${sourceFileCount} source files. You need to read at least ${minFilesBeforeDone} files before concluding. Continue reading the remaining contracts and use run_command with "rg" to search for vulnerability patterns. Use report_finding for any issues found.`,
+            timestamp: Date.now(),
+          });
+          continue;
+        }
         
         if (response.stopReason === 'stop') {
           this.log('Model stopped naturally');
@@ -354,10 +374,31 @@ export class AgentV2Scanner {
       for (const toolCall of toolCalls) {
         this.log(`[${i + 1}/${this.config.maxIterations}] Tool: ${toolCall.name}(${JSON.stringify(toolCall.arguments).substring(0, 80)})`);
         
+        // Track activity
+        if (toolCall.name === 'read_file' && toolCall.arguments?.path) {
+          filesRead.add(toolCall.arguments.path);
+        }
+        if (toolCall.name === 'search') searchCount++;
+        if (toolCall.name === 'run_command') commandCount++;
+        
         if (toolCall.name === 'done') {
+          if (filesRead.size < minFilesBeforeDone) {
+            // Block premature done
+            const toolResult: ToolResultMessage = {
+              role: 'toolResult' as const,
+              toolCallId: toolCall.id,
+              toolName: toolCall.name,
+              content: [{ type: 'text' as const, text: `Cannot finish yet. You've only read ${filesRead.size}/${minFilesBeforeDone} required files. Continue reading contracts and analyzing them.` }],
+              isError: true,
+              timestamp: Date.now(),
+            };
+            messages.push(toolResult);
+            continue;
+          }
           isDone = true;
         }
 
+        if (toolCall.name === 'done' && !isDone) continue; // already handled above
         const result = handleToolCall(targetPath, toolCall);
         
         if (result.finding) {

@@ -38,6 +38,7 @@ program
   .option('--deep', 'Deep LLM mode — recursive cross-file analysis (RLM)')
   .option('--agent', 'Agent mode — iterative audit with file reading and search')
   .option('--agent-budget <n>', 'Max iterations for agent mode (default: 30)', '30')
+  .option('--reasoning <level>', 'LLM reasoning level: minimal|low|medium|high|xhigh')
   .option('--max-depth <n>', 'RLM recursion depth (default: 2)', '2')
   .option('--max-iterations <n>', 'Max LLM calls for deep analysis (default: 30)', '30')
   .option('--git-history', 'Analyze git history for incomplete security fixes')
@@ -140,6 +141,7 @@ program
         apiKey: resolvedKeyAgent ?? undefined,
         maxIterations: agentBudget,
         verbose: !!options.verbose,
+        reasoning: options.reasoning,
       });
       if (!options.quiet) console.log(`\n🤖 Agent mode (budget: ${agentBudget} iterations)...`);
       const agentResult = await agentScanner.scan(absPath);

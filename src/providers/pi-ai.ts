@@ -144,6 +144,7 @@ export async function analyzeCode(
   code: string,
   filename: string,
   apiKey?: string,
+  reasoning?: string,
 ): Promise<Finding[]> {
   const m = createModel(provider, model, apiKey);
 
@@ -159,7 +160,10 @@ export async function analyzeCode(
   };
 
   try {
-    const result = await completeSimple(m, context, apiKey ? { apiKey } as any : undefined);
+    const opts: any = {};
+    if (apiKey) opts.apiKey = apiKey;
+    if (reasoning) opts.reasoning = reasoning;
+    const result = await completeSimple(m, context, Object.keys(opts).length ? opts : undefined);
     // completeSimple returns AssistantMessage with content array
     const textParts = result.content.filter((c): c is { type: 'text'; text: string } => 'type' in c && (c as any).type === 'text');
     const text = textParts.map((p) => p.text).join('');

@@ -208,6 +208,7 @@ export interface AgentConfig {
   apiKey?: string;
   maxIterations: number;
   verbose: boolean;
+  reasoning?: string;
 }
 
 export class AgentScanner {
@@ -256,7 +257,10 @@ export class AgentScanner {
       // Call LLM
       let responseText: string;
       try {
-        const result = await completeSimple(m, context, this.config.apiKey ? { apiKey: this.config.apiKey } as any : undefined);
+        const opts: any = {};
+        if (this.config.apiKey) opts.apiKey = this.config.apiKey;
+        if (this.config.reasoning) opts.reasoning = this.config.reasoning;
+        const result = await completeSimple(m, context, Object.keys(opts).length ? opts : undefined);
         const textParts = result.content.filter((c): c is { type: 'text'; text: string } => 'type' in c && (c as any).type === 'text');
         responseText = textParts.map((p) => p.text).join('');
       } catch (err) {

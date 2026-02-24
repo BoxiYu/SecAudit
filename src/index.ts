@@ -16,3 +16,4 @@ export { ensureSandboxImage, verifyCVuln, verifyFinding } from './scanner/sandbo
 export { RLMRepl } from './scanner/rlm-repl.js';
 export { RLM_IMAGE, getDockerEnv, isDockerAvailable, ensureRLMImage } from './scanner/rlm-docker.js';
 export type { Finding, ScanResult, ScanOptions, Rule, Severity, FixSuggestion } from './types.js';
+export { AgentScanner, type AgentConfig } from './scanner/agent.js';

@@ -5,6 +5,7 @@ import { writeFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { StaticScanner } from './scanner/static.js';
 import { LLMScanner } from './scanner/llm.js';
+import { AgentScanner } from './scanner/agent.js';
 import { reportTerminal } from './reporter/terminal.js';
 import { reportJSON } from './reporter/json.js';
 import { reportSARIF } from './reporter/sarif.js';
@@ -35,6 +36,8 @@ program
   .option('-q, --quiet', 'Quiet mode — only exit code')
   .option('-v, --verbose', 'Show detailed rule information')
   .option('--deep', 'Deep LLM mode — recursive cross-file analysis (RLM)')
+  .option('--agent', 'Agent mode — iterative audit with file reading and search')
+  .option('--agent-budget <n>', 'Max iterations for agent mode (default: 30)', '30')
   .option('--max-depth <n>', 'RLM recursion depth (default: 2)', '2')
   .option('--max-iterations <n>', 'Max LLM calls for deep analysis (default: 30)', '30')
   .option('--git-history', 'Analyze git history for incomplete security fixes')
@@ -125,6 +128,23 @@ program
       const gitResult = await gitScanner.scan(absPath);
       allFindings.push(...gitResult.findings);
       if (!options.quiet) console.log(`   Found ${gitResult.findings.length} issues from ${gitResult.commitsAnalyzed} security commits`);
+    }
+
+    // Agent mode — iterative audit
+    if (options.agent) {
+      const resolvedKeyAgent = await getApiKey(provider);
+      const agentBudget = parseInt(options.agentBudget, 10) || 30;
+      const agentScanner = new AgentScanner({
+        provider,
+        model,
+        apiKey: resolvedKeyAgent ?? undefined,
+        maxIterations: agentBudget,
+        verbose: !!options.verbose,
+      });
+      if (!options.quiet) console.log(`\n🤖 Agent mode (budget: ${agentBudget} iterations)...`);
+      const agentResult = await agentScanner.scan(absPath);
+      allFindings.push(...agentResult.findings);
+      if (!options.quiet) console.log(`   Agent found ${agentResult.findings.length} issues in ${agentResult.iterations} iterations`);
     }
 
     // Deep LLM analysis (cross-file, RLM recursive)

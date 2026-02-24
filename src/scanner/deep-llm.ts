@@ -41,15 +41,10 @@ Respond with a JSON array of objects:
 
 Rank by priority (1 = highest risk). Return ONLY the JSON array.`;
 
-function getReconPrompt(targetPath: string): string {
-  // Check if this is a Solidity project
-  const fs = require('fs');
-  const path = require('path');
-  try {
-    const files = fs.readdirSync(targetPath, { recursive: true }) as string[];
-    const hasSol = files.some((f: string) => String(f).endsWith('.sol'));
-    if (hasSol) return RECON_PROMPT_SOLIDITY;
-  } catch {}
+function getReconPromptFromFiles(files: { path: string }[]): string {
+  if (files.some(f => f.path.endsWith('.sol') || f.path.endsWith('.vy'))) {
+    return RECON_PROMPT_SOLIDITY;
+  }
   return RECON_PROMPT_DEFAULT;
 }
 
@@ -259,7 +254,7 @@ export class DeepLLMScanner {
     files: Array<{ path: string; content: string; lines: string[]; size: number }>,
   ): Promise<Array<{ module: string; reason: string; priority: number }>> {
     const tree = this.engine.buildFileTree(files);
-    const reconPrompt = getReconPrompt(files[0]?.path ? require('path').dirname(files[0].path) : '.');
+    const reconPrompt = getReconPromptFromFiles(files);
     const text = await this.engine.llmQuery(
       reconPrompt,
       `Here is the project structure:\n\n${tree}`,

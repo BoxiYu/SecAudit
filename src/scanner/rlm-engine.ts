@@ -7,6 +7,7 @@ import { RLMRepl, type REPLExecResult } from './rlm-repl.js';
 const CODE_EXTENSIONS = new Set([
   '.ts', '.js', '.jsx', '.tsx', '.py', '.go', '.java', '.c', '.cpp', '.h',
   '.hpp', '.rs', '.rb', '.php', '.cs', '.swift', '.kt', '.scala', '.vue',
+  '.sol', '.vy',
 ]);
 
 const MAX_CHARS_PER_CHUNK = 100_000;

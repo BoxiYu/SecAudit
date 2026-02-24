@@ -3,7 +3,7 @@ import { extname, relative } from 'node:path';
 import { glob } from 'glob';
 import ignore from 'ignore';
 import { Finding } from '../types.js';
-import { analyzeCode } from '../providers/pi-ai.js';
+import { analyzeCode, verifyFindings } from '../providers/pi-ai.js';
 
 const DEFAULT_IGNORE = [
   'node_modules/**', 'dist/**', 'build/**', '.git/**',
@@ -30,12 +30,14 @@ export class LLMScanner {
   private apiKey?: string;
   private fileFilter?: Set<string>;
   private concurrency: number;
+  private twoPass: boolean;
 
-  constructor(provider: string = 'openai', model: string = 'gpt-5.3-codex', apiKey?: string, concurrency: number = 5) {
+  constructor(provider: string = 'openai', model: string = 'gpt-5.3-codex', apiKey?: string, concurrency: number = 5, twoPass: boolean = false) {
     this.provider = provider;
     this.model = model;
     this.apiKey = apiKey;
     this.concurrency = concurrency;
+    this.twoPass = twoPass;
   }
 
   setFileFilter(files: string[]): void {
@@ -95,12 +97,35 @@ export class LLMScanner {
     };
 
     // Run with concurrency pool
+    const fileResults: Map<string, { findings: Finding[]; content: string }> = new Map();
     for (let i = 0; i < fileInfos.length; i += this.concurrency) {
       const batch = fileInfos.slice(i, i + this.concurrency);
       const results = await Promise.all(batch.map(analyzeFile));
-      for (const result of results) {
-        findings.push(...result);
+      for (let j = 0; j < batch.length; j++) {
+        const fileFindings = results[j];
+        if (fileFindings.length > 0) {
+          fileResults.set(batch[j].file, { findings: fileFindings, content: batch[j].content });
+        }
+        findings.push(...fileFindings);
       }
+    }
+
+    // Two-pass verification: re-check each file's findings to filter false positives
+    if (this.twoPass && fileResults.size > 0) {
+      const verified: Finding[] = [];
+      const verifyBatches = [...fileResults.entries()];
+      for (let i = 0; i < verifyBatches.length; i += this.concurrency) {
+        const batch = verifyBatches.slice(i, i + this.concurrency);
+        const results = await Promise.all(
+          batch.map(([file, { findings: ff, content }]) =>
+            verifyFindings(this.provider, this.model, content, file, ff, this.apiKey)
+          )
+        );
+        for (const result of results) {
+          verified.push(...result);
+        }
+      }
+      return { findings: verified, filesScanned: fileInfos.length };
     }
 
     return { findings, filesScanned: fileInfos.length };

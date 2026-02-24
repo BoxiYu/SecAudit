@@ -39,6 +39,7 @@ program
   .option('--max-iterations <n>', 'Max LLM calls for deep analysis (default: 30)', '30')
   .option('--git-history', 'Analyze git history for incomplete security fixes')
   .option('--repl', 'Enable REPL mode for deep analysis (requires Docker, use with --deep)')
+  .option('--two-pass', 'Two-pass mode: find candidates then verify (reduces false positives)')
   .option('--verify', 'Verify C/C++ findings in Docker sandbox (requires Docker)')
   .action(async (targetPath: string, options) => {
     const absPath = resolve(targetPath);
@@ -105,7 +106,7 @@ program
         }
       } else {
         const actualModel = model;
-        const llmScanner = new LLMScanner(provider, actualModel, resolvedKey ?? undefined);
+        const llmScanner = new LLMScanner(provider, actualModel, resolvedKey ?? undefined, 5, !!options.twoPass);
         if (diffFiles) llmScanner.setFileFilter(diffFiles);
         const result = await llmScanner.scan(absPath);
         allFindings.push(...result.findings);

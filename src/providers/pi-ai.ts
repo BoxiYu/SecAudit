@@ -193,3 +193,86 @@ export async function analyzeCode(
     return [];
   }
 }
+
+const VERIFY_PROMPT = `You are a senior smart contract security auditor performing a VERIFICATION pass.
+You are given a candidate vulnerability report and the relevant source code.
+Your job is to determine if this is a REAL exploitable vulnerability or a FALSE POSITIVE.
+
+For each candidate, respond with a JSON array:
+[{
+  "id": <index>,
+  "verdict": "CONFIRMED" | "FALSE_POSITIVE",
+  "confidence": 0.0-1.0,
+  "reason": "<why this is real or false positive, with specific code references>"
+}]
+
+A finding is FALSE_POSITIVE if:
+- The described attack is prevented by a modifier, require, or check the auditor missed
+- The function is internal/private and only called safely
+- The contract is a mock/test/example not meant for production
+- The described scenario is economically infeasible (costs more than gain)
+- The code path is unreachable or guarded by protocol-level controls
+
+A finding is CONFIRMED if:
+- You can trace a concrete exploit path from entry point to impact
+- The described root cause is correct and the code lacks adequate protection
+- The impact (loss of funds, DoS, privilege escalation) is real
+
+Be strict. When in doubt, mark FALSE_POSITIVE. We prefer missing real vulns over reporting false ones.
+Respond ONLY with the JSON array.`;
+
+export async function verifyFindings(
+  provider: string,
+  model: string,
+  code: string,
+  filename: string,
+  findings: Finding[],
+  apiKey?: string,
+): Promise<Finding[]> {
+  if (findings.length === 0) return [];
+
+  const m = createModel(provider, model, apiKey);
+
+  const candidateList = findings.map((f, i) =>
+    `[${i}] ${f.severity.toUpperCase()} L${f.line}: ${f.message}`
+  ).join('\n');
+
+  const context: Context = {
+    systemPrompt: VERIFY_PROMPT,
+    messages: [
+      {
+        role: 'user' as const,
+        content: `Verify these candidate vulnerabilities:\n\n${candidateList}\n\nSource code (${filename}):\n\`\`\`\n${addLineNumbers(code)}\n\`\`\``,
+        timestamp: Date.now(),
+      },
+    ],
+  };
+
+  try {
+    const result = await completeSimple(m, context, apiKey ? { apiKey } as any : undefined);
+    const textParts = result.content.filter((c): c is { type: 'text'; text: string } => 'type' in c && (c as any).type === 'text');
+    const text = textParts.map((p) => p.text).join('');
+    if (!text) return findings; // fallback: keep all
+
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return findings;
+
+    const verdicts = JSON.parse(jsonMatch[0]) as Array<{
+      id: number;
+      verdict: string;
+      confidence: number;
+    }>;
+
+    // Keep only CONFIRMED findings with confidence >= 0.6
+    const confirmedIds = new Set(
+      verdicts
+        .filter((v) => v.verdict === 'CONFIRMED' && (v.confidence ?? 1) >= 0.6)
+        .map((v) => v.id)
+    );
+
+    return findings.filter((_, i) => confirmedIds.has(i));
+  } catch (err) {
+    console.error(`Verification failed for ${filename}:`, (err as Error).message);
+    return findings; // fallback: keep all on error
+  }
+}

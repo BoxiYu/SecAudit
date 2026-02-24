@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import { StaticScanner } from './scanner/static.js';
 import { LLMScanner } from './scanner/llm.js';
 import { AgentScanner } from './scanner/agent.js';
+import { AgentV2Scanner } from './scanner/agent-v2.js';
 import { reportTerminal } from './reporter/terminal.js';
 import { reportJSON } from './reporter/json.js';
 import { reportSARIF } from './reporter/sarif.js';
@@ -36,7 +37,8 @@ program
   .option('-q, --quiet', 'Quiet mode — only exit code')
   .option('-v, --verbose', 'Show detailed rule information')
   .option('--deep', 'Deep LLM mode — recursive cross-file analysis (RLM)')
-  .option('--agent', 'Agent mode — iterative audit with file reading and search')
+  .option('--agent', 'Agent mode v1 — iterative audit (transcript-based)')
+  .option('--agent2', 'Agent mode v2 — real tool-use agent with multi-turn conversation')
   .option('--agent-budget <n>', 'Max iterations for agent mode (default: 30)', '30')
   .option('--reasoning <level>', 'LLM reasoning level: minimal|low|medium|high|xhigh')
   .option('--max-depth <n>', 'RLM recursion depth (default: 2)', '2')
@@ -131,7 +133,25 @@ program
       if (!options.quiet) console.log(`   Found ${gitResult.findings.length} issues from ${gitResult.commitsAnalyzed} security commits`);
     }
 
-    // Agent mode — iterative audit
+    // Agent V2 mode — real tool use
+    if (options.agent2) {
+      const resolvedKeyAgent2 = await getApiKey(provider);
+      const agentBudget = parseInt(options.agentBudget, 10) || 30;
+      const agent2 = new AgentV2Scanner({
+        provider,
+        model,
+        apiKey: resolvedKeyAgent2 ?? undefined,
+        maxIterations: agentBudget,
+        verbose: !!options.verbose,
+        reasoning: options.reasoning,
+      });
+      if (!options.quiet) console.log(`\n🤖 Agent V2 mode (tool-use, budget: ${agentBudget})...`);
+      const agentResult = await agent2.scan(absPath);
+      allFindings.push(...agentResult.findings);
+      if (!options.quiet) console.log(`   Agent found ${agentResult.findings.length} issues in ${agentResult.iterations} iterations`);
+    }
+
+    // Agent V1 mode — transcript-based (legacy)
     if (options.agent) {
       const resolvedKeyAgent = await getApiKey(provider);
       const agentBudget = parseInt(options.agentBudget, 10) || 30;

@@ -9,8 +9,9 @@
  * - done: Finish the audit
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, relative, extname, dirname } from 'node:path';
+import { execSync } from 'node:child_process';
 import { createModel } from '../providers/pi-ai.js';
 import type { Finding } from '../types.js';
 import { Severity } from '../types.js';
@@ -61,6 +62,21 @@ const TOOLS: Tool[] = [
       severity: Type.Union([Type.Literal('critical'), Type.Literal('high')]),
       title: Type.String({ description: 'Short title (e.g., "Missing access control on withdraw")' }),
       description: Type.String({ description: 'Detailed root cause, exploit scenario, and impact' }),
+    }),
+  },
+  {
+    name: 'run_command',
+    description: 'Execute a shell command in the project directory. Use for: grep/rg with regex, find, wc, forge build/test, solc, or any analysis command. Commands are sandboxed to the project dir. Timeout: 30s.',
+    parameters: Type.Object({
+      command: Type.String({ description: 'Shell command to execute (e.g., "rg -n transferFrom", "find . -name *.sol | wc -l")' }),
+    }),
+  },
+  {
+    name: 'write_file',
+    description: 'Write content to a file. Use to create PoC test files or analysis scripts.',
+    parameters: Type.Object({
+      path: Type.String({ description: 'Relative file path to write' }),
+      content: Type.String({ description: 'File content' }),
     }),
   },
   {
@@ -204,6 +220,45 @@ function handleToolCall(basePath: string, toolCall: ToolCall): { content: string
         snippet: '',
       };
       return { content: 'Finding recorded.', finding };
+    }
+    
+    case 'run_command': {
+      const cmd = args.command || '';
+      // Block dangerous commands
+      const blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){', 'chmod -R 777 /'];
+      if (blocked.some(b => cmd.includes(b))) {
+        return { content: 'Error: command blocked for safety.' };
+      }
+      try {
+        const output = execSync(cmd, {
+          cwd: basePath,
+          timeout: 30_000,
+          maxBuffer: 1024 * 1024,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        const truncated = output.length > 50_000 ? output.substring(0, 50_000) + '\n... (truncated)' : output;
+        return { content: truncated || '(no output)' };
+      } catch (err: any) {
+        const stderr = err.stderr || '';
+        const stdout = err.stdout || '';
+        const output = (stdout + '\n' + stderr).trim();
+        return { content: output ? `Exit code ${err.status || 1}:\n${output.substring(0, 10_000)}` : `Command failed: ${err.message}` };
+      }
+    }
+
+    case 'write_file': {
+      const filePath = args.path || '';
+      const content = args.content || '';
+      try {
+        const full = join(basePath, filePath);
+        if (!full.startsWith(basePath)) return { content: 'Error: path outside project' };
+        mkdirSync(dirname(full), { recursive: true });
+        writeFileSync(full, content, 'utf-8');
+        return { content: `Written ${content.length} bytes to ${filePath}` };
+      } catch (err: any) {
+        return { content: `Error writing file: ${err.message}` };
+      }
     }
     
     case 'done':
